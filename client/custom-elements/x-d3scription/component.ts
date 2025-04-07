@@ -105,7 +105,7 @@ function initObservers() {
  *
  * will show `content` on hovering over `target-selector` as tooltip
  */
-export default class XD3scription extends HTMLElement {
+class XD3scription extends HTMLElement {
     static get observedAttributes() {
         return [
             "content",

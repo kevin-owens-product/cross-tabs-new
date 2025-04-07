@@ -174,10 +174,6 @@ module.exports = ({ appName, indexPath }) => {
 
         resolve: {
             alias: {
-                "x-tag": path.resolve(
-                    __dirname,
-                    "../node_modules/x-tag/dist/x-tag-core.min.js"
-                ),
                 // css-loader handles only relative paths in url() now, so this alias
                 // enables us to use "absolute" paths (with `client/` as a root)
                 "/assets": path.resolve(__dirname, "./assets/")
