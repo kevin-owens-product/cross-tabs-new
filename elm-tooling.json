@@ -1,6 +1,6 @@
 {
     "entrypoints": [
-        "./src/crosstab-builder/XB2/src/Main.elm"
+        "src/crosstab-builder/XB2/src/Main.elm"
     ],
     "tools": {
         "elm": "0.19.1",

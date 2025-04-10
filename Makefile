@@ -1,158 +1,88 @@
-# For start we are expecting `yarn` is installed globally
+.DEFAULT_GOAL = help
 
-ROOT_PATH := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 NODE_ENV ?= development
 TARGET_ENV ?= development
-TEST_OPTIONS ?= ""
-DEBUG_MODE ?= ""
+DEBUG_MODE ?= false
 
-.PHONY: all
-all: yarn.lock
+# These are the only posible values for ports. Other ports have conflicts with the API.
+BUILD_SERVE_PORT = 3900
+KERNEL_PORT = 4200
 
-dev_env:
-	@echo " - setup DEV env"
-	$(eval include dev.env)
-	$(eval export)
+.SILENT: print_env
+.PHONY: print_env
+print_env:
+	@echo "\033[93mNODE_ENV = $(NODE_ENV)\033[0m"
+	@echo "\033[93mTARGET_ENV = $(TARGET_ENV)\033[0m"
+	@echo "\033[93mDEBUG_MODE = $(DEBUG_MODE)\033[0m"
 
-.PHONY: no_watch_mode
-no_watch_mode:
-	@echo " - no watch mode build"
-	$(eval WATCH_MODE=false)
-
-yarn.lock: node_modules package.json
-	$(MAKE clean)
-	yarn install --production=false
-
-node_modules:
-	mkdir -p $@
+.PHONY: help
+help: ## Prints this prompt.
+	@echo "\033[1;31mplatform2-crosstabs Makefile\033[0m\n"
+	@echo "Usage: make [target]\n"
+	@echo "Available targets:\n"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: clean
-clean:
-	find . -name elm-stuff | xargs rm -rf
+clean: ## Cleans every asset built by Elm, TS, yarn or another stuff.
+	@echo "\033[36mCleaning...\033[0m"
+	rm -rf ./dist
+	rm -rf ./elm-stuff
+	rm -rf ./node_modules
+	rm -rf ./build
+	rm -rf ./.coverage
 
-.PHONY: clean_all
-clean_all: clean
-	rm -fr node_modules
+.PHONY: install
+install: ## Installs every dependency needed to build the project. Expects `yarn` to be installed globally.
+	@echo "\033[36mInstalling dependencies...\033[0m"
+	yarn install
 
-.SILENT: format_validate
-.PHONY: format_validate
-format_validate:
-	echo "Run format validate"
-	npx prettier -c .
-
-.PHONY: check_unused_scss_files
-check_unused_scss_files:
-	@echo "Check unused SCSS files"
-	@./bin/check_unused_scss_files.sh
-
-# Tests
-
-.SILENT: test_xb2
-.PHONY: test_xb2
-test_xb2:
-	echo "Run crosstab-builder 2.0 tests"
-	cd src/crosstab-builder/XB2 && TARGET_ENV=test && find . -name '*.elm' | grep "^./tests" | xargs npx elm-test-rs $(TEST_OPTIONS) && cd -
-
-.SILENT: test_xb
-.PHONY: test_xb
-test_xb: test_xb2
-
-# All tests running
-
-.PHONY: test
-test: override TEST_OPTIONS = ""
-test: test_xb
-
-# Coverage
-
-.SILENT: cover_xb2
-.PHONY: cover_xb2
-cover_xb2:
-	echo "Checking coverage of crosstab-builder 2.0"
-	cd src/crosstab-builder/XB2 && elm-coverage --open && cd -
-
-.SILENT: cover_xb
-.PHONY: cover_xb
-cover_xb: cover_xb2
-
-.SILENT: cover_tv
-.PHONY: cover_tv
-cover_tv: cover_tv1 cover_tv2
-
-# All coverage check running
-
-.PHONY: cover
-cover: override TEST_OPTIONS = ""
-cover: cover_share cover_xb cover_tv
-
-# Build end development
-
-PORT ?= 3900
-
-.PHONY: start
-start:
-	npx webpack serve --hot --port 3000 --host 0.0.0.0
-
-.PHONY: p2_serve_build_files_server
-p2_serve_build_files_server:
-	mkdir -p build && cd build && npx http-server -p $(PORT) --cors -c-1 &
-
-.PHONY: p2_serve_build_files_server_no_background
-p2_serve_build_files_server_no_background:
-	mkdir -p build && cd build && npx http-server -p $(PORT) --cors -c-1
-
-.PHONY: start_crosstabs_for_P2
-start_crosstabs_for_P2: dev_env p2_serve_build_files_server build_xb2
-
-.PHONY: start_tvrf_for_P2
-start_tvrf_for_P2: dev_env p2_serve_build_files_server build_tv2
-
-.PHONY: start_for_P2
-start_for_P2: dev_env no_watch_mode build_tv2 build_xb2 p2_serve_build_files_server_no_background
-
-.PHONY: build
-build:
-	npx webpack --progress
-
-.PHONY: build_xb2
-build_xb2:
-	npx webpack --progress --config src/crosstab-builder/XB2/webpack.config.js
-
-.PHONY: build_for_p20
-build_for_p20: build_xb2 build_tv2
-
-.PHONY: format
-format:
-	npx prettier -w .
-
-# Running elm-review without args can lead to false positives about unused stuff, which is in fact used in tests
-# To fix that, we search for all committed elm files and pass them explicitly to elm-review via xargs
-.PHONY: review
-review:
-	npx elm-review src/
-
-.PHONY: review-watch
-review-watch:
-	npx elm-review src/ --watch
-
-.PHONY: review-styles
-review-styles:
-	npx stylelint 'src/**/*.scss'
-
-.PHONY: fix-styles
-fix-styles:
-	npx stylelint --fix 'src/**/*.scss'
-
-.PHONY: icons
-icons:
-	npx elm make --optimize --output icons.html ./src/_share/src/Icons/Overview.elm
-
-.PHONY: pr
-pr: review review-styles format test
-	type -p gh > /dev/null && gh pr create -w || true
+.PHONY: serve_build
+serve_build: ## Serves the build/ folder in the background.
+	@echo "\033[36mServing build folder...\033[0m"
+	mkdir -p build && cd build && npx http-server -p $(BUILD_SERVE_PORT) --cors -c-1 &
 
 .PHONY: lint
 lint: ## Lints the project with elm-review, eslint and stylelint.
 	@echo "\033[36mReviewing project...\033[0m"
 	npx elm-review src/
 	npx stylelint 'src/**/*.scss'
+
+.PHONY: lint_fix
+lint_fix: ## Fixes fixable linting errors.
+	@echo "\033[36mFixing project...\033[0m"
+	npx elm-review src/ --fix-all
+	npx stylelint 'src/**/*.scss' --fix
+
+.PHONY: lint_watch
+lint_watch: ## Lints the project with elm-review, eslint and stylelint in watch mode.
+	@echo "\033[36mReviewing project...\033[0m"
+	npx elm-review src/ --watch
+	npx stylelint 'src/**/*.scss'
+
+.PHONY: format
+format: ## Applies formatting to the whole project.
+	@echo "\033[36mFormatting project...\033[0m"
+	npx prettier -w .
+
+.SILENT: format_validate
+.PHONY: format_validate
+format_validate: ## Validates formatting of the whole project.
+	@echo "\033[36mValidating project formatting...\033[0m"
+	npx prettier -c .
+
+.PHONY: test_coverage
+test_coverage: ## Tests the coverage of the project codebase.
+	@echo "\033[36mTesting coverage...\033[0m"
+	npx elm-coverage src/ --open
+
+.PHONY: test
+test: ## Runs the tests.
+	@echo "\033[36mTesting...\033[0m"
+
+.PHONY: start
+start: print_env
+start: ## Starts the project in development mode.
+	@echo "\033[36mStarting project...\033[0m"
+	
+	
