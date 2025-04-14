@@ -38,9 +38,9 @@ install: ## Installs every dependency needed to build the project. Expects `yarn
 	yarn install
 
 .PHONY: serve_build
-serve_build: ## Serves the build/ folder in the background.
+serve_build: ## Serves the build/ folder
 	@echo "\033[36mServing build folder...\033[0m"
-	mkdir -p build && cd build && npx http-server -p $(BUILD_SERVE_PORT) --cors -c-1 &
+	mkdir -p build && cd build && npx http-server -p $(BUILD_SERVE_PORT) --cors -c-1
 
 .PHONY: lint
 lint: ## Lints the project with elm-review, eslint and stylelint.
@@ -58,7 +58,6 @@ lint_fix: ## Fixes fixable linting errors.
 lint_watch: ## Lints the project with elm-review, eslint and stylelint in watch mode.
 	@echo "\033[36mReviewing project...\033[0m"
 	npx elm-review src/ --watch
-	npx stylelint 'src/**/*.scss'
 
 .PHONY: format
 format: ## Applies formatting to the whole project.
@@ -74,15 +73,27 @@ format_validate: ## Validates formatting of the whole project.
 .PHONY: test_coverage
 test_coverage: ## Tests the coverage of the project codebase.
 	@echo "\033[36mTesting coverage...\033[0m"
-	npx elm-coverage src/ --open
+	cd src/crosstab-builder/XB2 && npx elm-coverage --open && cd -
 
 .PHONY: test
 test: ## Runs the tests.
 	@echo "\033[36mTesting...\033[0m"
+	cd src/crosstab-builder/XB2 && TARGET_ENV=test && find . -name '*.elm' | grep "^./tests" | xargs npx elm-test-rs && cd -
+
+.PHONY: test_watch
+test_watch: ## Runs the tests in watch mode.
+	@echo "\033[36mTesting in watch mode...\033[0m"
+	cd src/crosstab-builder/XB2 && TARGET_ENV=test && find . -name '*.elm' | grep "^./tests" | xargs npx elm-test-rs --watch && cd -
 
 .PHONY: start
-start: print_env
+start: print_env build
 start: ## Starts the project in development mode.
 	@echo "\033[36mStarting project...\033[0m"
+	make serve_build
 	
 	
+.PHONY: build
+build: print_env
+build: ## Builds the project in watch mode.
+	@echo "\033[36mBuilding project...\033[0m"
+	npx webpack --progress --config src/crosstab-builder/XB2/webpack.config.js
