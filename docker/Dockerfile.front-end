@@ -51,7 +51,6 @@ RUN printf "module DummyMain exposing (..)\nx = 1" > src/crosstab-builder/XB2/sr
 
 RUN rm -rf ./src/crosstab-builder/XB2/src/DummyMain.elm
 
-COPY webpack.config.js /pro/webpack.config.js
 COPY tsconfig.json /pro/tsconfig.json
 COPY ./deploy /pro/deploy
 COPY Makefile /pro/Makefile
