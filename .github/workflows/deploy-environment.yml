@@ -1,0 +1,92 @@
+name: deploy-environment
+
+on:
+  workflow_call:
+    secrets:
+      core_s:
+        description: 'Core-s credentials needed for image pull'
+        required: true
+      json_credentials:
+        description: 'Json credentials to use for the right environment'
+        required: true
+      plandek_token:
+        description: 'Plandek token'
+        required: true 
+    inputs:
+      target_env:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ${{ fromJSON(vars.GWI_PERFORMANCE_RUNNERS) }}
+    concurrency:
+      group: deploy-${{ inputs.target_env }}-${{ github.ref }}
+      cancel-in-progress: true
+    
+    container:
+      image: eu.gcr.io/core-calculations-s/platform2-crosstabs-frontend:${{ github.sha }}
+      credentials:
+        username: _json_key
+        password: ${{ secrets.core_s }}
+    steps:
+    - uses: actions/checkout@v4.1.2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: 'google-github-actions/auth@v2.1.2'
+      with:
+        credentials_json: '${{ secrets.json_credentials }}'
+        export_environment_variables: true
+    - name: deploy-revision-build
+      run: |
+        cd /pro
+        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make build_xb2
+        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make build_tv2
+        cd deploy
+        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make replace-cdn-url
+        echo "The look of /pro directory after build:"
+        ls /pro
+
+    - name: 'deploy-revision-push'
+      uses: 'google-github-actions/upload-cloud-storage@v2.1.0'
+      with:
+        path: '/pro/deploy/build/'
+        destination: 'platform2-crosstabs-assets-${{ inputs.target_env }}/assets/${{ github.sha }}'
+        parent: false
+        process_gcloudignore: false
+
+    - name: deploy-revision-release-and-activate-p2
+      id: deploy-revision-release-and-activate-p2
+      if: ${{ github.ref != 'refs/heads/production' && github.ref != 'refs/heads/master' }}
+      run: |
+        printf "%s" "${{ secrets.json_credentials }}" > ${HOME}/gcloud-service-key.json
+        cd /pro/deploy
+        TARGET_ENV=${{ inputs.target_env }} GITHUB_REF=${{ github.ref_name }} GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
+
+    - name: deploy-p2-revision-activate-p2
+      # Run only on master branch, on staging/testing
+      if: ${{ github.ref == 'refs/heads/master' && ( inputs.target_env == 'testing' || inputs.target_env == 'staging' || inputs.target_env == 'alpha' ) }}
+      run: |
+        cd /pro/deploy; TARGET_ENV=${{ inputs.target_env }} make release-and-activate-p2
+   
+    - name: deploy-revision-release-only
+      # Run only on master branch, on production
+      # Release to P2 production under "elm-release" feature branch for QA run
+      id: deploy-revision-release-only
+      if: ${{ github.ref == 'refs/heads/production' && inputs.target_env == 'production' }}
+      run: |
+        cd /pro/deploy
+        TARGET_ENV=${{ inputs.target_env }} GITHUB_REF="elm-release" GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
+
+    - name: Generate timestamp
+      id: generateTimestamp
+      shell: bash
+      run: echo "timestamp=$(date -u)" >> $GITHUB_OUTPUT
+
+    - name: post-to-plandek
+      if: ${{ inputs.target_env == 'production' && steps.deploy-revision-release-and-activate-p2.outcome != 'skipped' }}
+      uses: GlobalWebIndex/github-actions/rt/plandek@v2.5
+      with:
+        plandek_token: ${{ secrets.plandek_token }}
+        status: ${{ steps.deploy-revision-release-and-activate-p2.outcome }}
+        timestamp: ${{ steps.generateTimestamp.outputs.timestamp }}

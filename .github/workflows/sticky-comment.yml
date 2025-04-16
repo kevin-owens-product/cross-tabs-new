@@ -1,0 +1,82 @@
+name: sticky-comment
+
+on:
+  - pull_request
+
+jobs:
+  sticky-comment:
+    runs-on: ${{ fromJSON(vars.GWI_PERFORMANCE_RUNNERS) }}
+    container:
+      image: eu.gcr.io/gwi-host-net/ubuntu:act-latest
+      credentials:
+        username: _json_key
+        password: ${{ secrets.SA_GWI_HOST_NET }}
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: sticky-comment-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Set env value with the feature branch
+        shell: bash
+        run: |
+          echo "Branch name is: ${{ github.head_ref }}"
+          [[ "${{ github.head_ref }}" =~ ^(feature|chore|spike|fix)/.* ]] && echo "The branch name matches our feature branch prefixes!" && echo "FEATURE_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV || exit 0
+
+      - name: Set env value with the feature branch for P2
+        shell: bash
+        run: |
+          echo "Branch name is: ${{ github.head_ref }}"
+
+          [[ "${{ github.head_ref }}" =~ /(.*)$ ]] && echo "The PR FB after!" && echo "P2_FB=$BASH_REMATCH" >> $GITHUB_ENV || echo "P2_FB=/${{ github.head_ref }}" >> $GITHUB_ENV
+
+      - name: Set env value with the ATC ticket
+        shell: bash
+        run: |
+          PR_TITLE=$(curl -s \
+            -H "Accept: application/vnd.github.groot-preview+json" \
+            -H "Authorization: token ${{ github.token }}" \
+            https://api.github.com/repos/GlobalWebIndex/platform2-crosstabs/commits/${{ github.event.pull_request.head.sha }}/pulls \
+            | jq -r '.[].title')
+
+          echo "PR title is: ${PR_TITLE}"
+
+          [[ "${PR_TITLE}" =~ (ATC|UM|AUR|CDA)-[0-9]+ ]] && echo "The PR title matches ATC-* or UM-*!" && echo "TICKET_NUMBER=$BASH_REMATCH" >> $GITHUB_ENV || exit 0
+
+      # FEATURE_BRANCH: no, TICKET_NUMBER: no
+      # results in no sticky comment
+
+      # FEATURE_BRANCH: yes, TICKET_NUMBER: yes
+      - name: (Re)create a sticky PR comment (both ticket number and feature branch URLs)
+        uses: marocchino/sticky-pull-request-comment@v2
+        id: sticky-comment-both
+        if: ${{ env.FEATURE_BRANCH && env.TICKET_NUMBER }}
+        with:
+          message: |
+            Ticket: ${{ env.TICKET_NUMBER }}
+            Feature branches:
+              * testing: https://app-testing.globalwebindex.com/${{ env.TICKET_NUMBER }}
+              * staging: https://app-staging.globalwebindex.com/${{ env.TICKET_NUMBER }}
+              * alpha: https://app-alpha.globalwebindex.com/${{ env.TICKET_NUMBER }}
+              * production: https://app.globalwebindex.com/${{ env.TICKET_NUMBER }}
+
+      # FEATURE_BRANCH: no, TICKET_NUMBER: yes
+      - name: (Re)create a sticky PR comment (only ticket number)
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: ${{ env.TICKET_NUMBER && steps.sticky-comment-both.conclusion == 'skipped' }}
+        with:
+          message: |
+            Ticket: ${{ env.TICKET_NUMBER }}
+
+      # FEATURE_BRANCH: yes, TICKET_NUMBER: no
+      - name: (Re)create a sticky PR comment (only feature branch URLs and P2_FB match)
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: ${{ env.FEATURE_BRANCH && steps.sticky-comment-both.conclusion == 'skipped' }}
+        with:
+          message: |
+            Feature branches:
+              * testing: https://app-testing.globalwebindex.com${{ env.P2_FB }}
+              * staging: https://app-staging.globalwebindex.com${{ env.P2_FB }}
+              * alpha: https://app-alpha.globalwebindex.com/${{ env.P2_FB }}
+              * production: https://app.globalwebindex.com${{ env.P2_FB }}

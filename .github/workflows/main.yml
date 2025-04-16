@@ -1,0 +1,115 @@
+name: default
+on:
+  push: {}
+
+jobs:
+  build-docker:
+    runs-on: ${{ fromJSON(vars.GWI_PERFORMANCE_RUNNERS) }}
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+    - uses: actions/checkout@v4.1.2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DRONE_SSH_KEY }}
+    - uses: docker/login-action@v3.1.0
+      with:
+        registry: eu.gcr.io
+        username: _json_key
+        password: ${{ secrets.SA_CORE_CALCULATIONS_S}}
+    - name: Prepare .npmrc
+      # We will later copy the .npmrc file into the docker image
+      run: |
+        echo @globalwebindex:registry=https://npm.pkg.github.com/ > .npmrc
+        echo '//npm.pkg.github.com/:_authToken=${{secrets.GITHUB_TOKEN}}' >> .npmrc
+    - name: Build and push docker image
+      run: |
+        DOCKER_BUILDKIT=1 docker build --ssh default -t eu.gcr.io/core-calculations-s/platform2-crosstabs-frontend:${{ github.sha }} -f ./docker/Dockerfile.front-end .
+        docker push eu.gcr.io/core-calculations-s/platform2-crosstabs-frontend:${{ github.sha }}
+
+  quality-checks:
+    runs-on: ${{ fromJSON(vars.GWI_DEFAULT_RUNNERS) }}
+    if: ${{ github.ref == 'refs/heads/production' || github.ref == 'refs/heads/master' }}
+    concurrency:
+      group: quality-checks-${{ github.ref }}
+      cancel-in-progress: true
+    needs: build-docker
+    container:
+      image: eu.gcr.io/core-calculations-s/platform2-crosstabs-frontend:${{ github.sha }}
+      credentials:
+        username: _json_key
+        password: ${{ secrets.SA_CORE_CALCULATIONS_S}}
+    steps:
+      - uses: actions/checkout@v4.1.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install yarn dependencies
+        run: yarn --frozen-lockfile --prefer-offline
+      - name: Add yarn dependencies to path
+        run: echo "$(yarn bin)" >> $GITHUB_PATH
+      - name: Run quality checks
+        run: |
+          echo "stylelint check"
+          echo "==============="
+          npx stylelint 'client/**/*.scss'
+
+          echo "Validate format"
+          echo "==============="
+          npx prettier -c .
+
+          echo "elm-review check"
+          echo "================"
+          make review
+
+          echo "Running tests"
+          echo "============="
+          make test_share
+          make test_xb2
+          make test_tv2
+
+  deploy-testing:
+    uses: ./.github/workflows/deploy-environment.yml
+    if: ${{ always() && needs.build-docker.result == 'success' && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped') }}
+    needs: [ build-docker, quality-checks ]
+    secrets:
+      core_s: ${{ secrets.SA_CORE_CALCULATIONS_S }}
+      json_credentials: ${{ secrets.SA_CORE_CALCULATIONS_T }}
+      plandek_token: ${{ secrets.PLANDEK_TOKEN }}
+    with:
+      target_env: testing
+
+  deploy-staging:
+    uses: ./.github/workflows/deploy-environment.yml
+    if: ${{ always() && needs.build-docker.result == 'success' && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped') }}
+    needs: [ build-docker, quality-checks ]
+    secrets:
+      core_s: ${{ secrets.SA_CORE_CALCULATIONS_S }}
+      json_credentials: ${{ secrets.SA_CORE_CALCULATIONS_S }}
+      plandek_token: ${{ secrets.PLANDEK_TOKEN }}
+    with:
+      target_env: staging
+
+  deploy-alpha:
+    uses: ./.github/workflows/deploy-environment.yml
+    if: ${{ always() && needs.build-docker.result == 'success' && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped') }}
+    needs: [ build-docker, quality-checks ]
+    secrets:
+      core_s: ${{ secrets.SA_CORE_CALCULATIONS_S }}
+      json_credentials: ${{ secrets.SA_CORE_CALCULATIONS_A }}
+      plandek_token: ${{ secrets.PLANDEK_TOKEN }}
+    with:
+      target_env: alpha
+
+  deploy-production:
+    uses: ./.github/workflows/deploy-environment.yml
+    if: ${{ always() && needs.build-docker.result == 'success' && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped') }}
+    needs: [ build-docker, quality-checks ]
+    secrets:
+      core_s: ${{ secrets.SA_CORE_CALCULATIONS_S }}
+      json_credentials: ${{ secrets.SA_CORE_CALCULATIONS_P }}
+      plandek_token: ${{ secrets.PLANDEK_TOKEN }}
+    with:
+      target_env: production
+

@@ -8,33 +8,29 @@ PRONEXT_CDN_URL_TESTING := $(addprefix https://legacy-testing.globalwebindex.com
 PRONEXT_CDN_URL_STAGING := $(addprefix https://legacy-staging.globalwebindex.com/assets/,$(REVISION))
 PRONEXT_CDN_URL_ALPHA := $(addprefix https://legacy-alpha.globalwebindex.com/assets/,$(REVISION))
 PRONEXT_CDN_URL_PRODUCTION := $(addprefix https://legacy.globalwebindex.com/assets/,$(REVISION))
-P2_CDN_URL_TESTING := $(addprefix https://app-testing.globalwebindex.com/storage/pro-next-assets-testing/assets/,$(REVISION))
-P2_CDN_URL_STAGING := $(addprefix https://app-staging.globalwebindex.com/storage/pro-next-assets-staging/assets/,$(REVISION))
-P2_CDN_URL_ALPHA := $(addprefix https://app-alpha.globalwebindex.com/storage/pro-next-assets-staging/assets/,$(REVISION))
-P2_CDN_URL_PRODUCTION := $(addprefix https://app.globalwebindex.com/storage/pro-next-assets-production/assets/,$(REVISION))
-GCS_BUCKET_TESTING := "pro-next-assets-testing"
-GCS_BUCKET_STAGING := "pro-next-assets-staging"
-GCS_BUCKET_ALPHA := "pro-next-assets-alpha"
-GCS_BUCKET_PRODUCTION := "pro-next-assets-production"
+P2_CDN_URL_TESTING := $(addprefix https://app-testing.globalwebindex.com/storage/platform2-crosstabs-assets-testing/assets/,$(REVISION))
+P2_CDN_URL_STAGING := $(addprefix https://app-staging.globalwebindex.com/storage/platform2-crosstabs-assets-staging/assets/,$(REVISION))
+P2_CDN_URL_ALPHA := $(addprefix https://app-alpha.globalwebindex.com/storage/platform2-crosstabs-assets-staging/assets/,$(REVISION))
+P2_CDN_URL_PRODUCTION := $(addprefix https://app.globalwebindex.com/storage/platform2-crosstabs-assets-production/assets/,$(REVISION))
+GCS_BUCKET_TESTING := "platform2-crosstabs-assets-testing"
+GCS_BUCKET_STAGING := "platform2-crosstabs-assets-staging"
+GCS_BUCKET_ALPHA := "platform2-crosstabs-assets-alpha"
+GCS_BUCKET_PRODUCTION := "platform2-crosstabs-assets-production"
 GCP_PROJECT_TESTING := "core-calculations-t"
 GCP_PROJECT_STAGING := "core-calculations-s"
 GCP_PROJECT_ALPHA := "core-calculations-a"
 GCP_PROJECT_PRODUCTION := "core-calculations-p"
 
 P2_FE_CONFIG_TESTING := "https://fe-configuration-api-testing.in.globalwebindex.com/"
-P2_MFE_TV_TESTING := "7053b9e2-b2ed-4ade-8681-fac73a75f38c"
 P2_MFE_XB_TESTING := "7831ba23-01f1-4fa7-927e-146096d4da61"
 
 P2_FE_CONFIG_STAGING := "https://fe-configuration-api-staging.in.globalwebindex.com/"
-P2_MFE_TV_STAGING := "3c115ab3-3fd4-4219-ace2-91e35be818b1"
 P2_MFE_XB_STAGING := "eadb92c7-b414-4a35-8602-846fc82fbeb2"
 
 P2_FE_CONFIG_ALPHA := "https://fe-configuration-api-alpha.in.globalwebindex.com/"
-P2_MFE_TV_ALPHA := "7053b9e2-b2ed-4ade-8681-fac73a75f38c"
 P2_MFE_XB_ALPHA := "1ec74296-74e2-4205-8728-1a8e6dff998a"
 
 P2_FE_CONFIG_PRODUCTION := "https://fe-configuration-api.in.globalwebindex.com/"
-P2_MFE_TV_PRODUCTION := "7053b9e2-b2ed-4ade-8681-fac73a75f38c"
 P2_MFE_XB_PRODUCTION := "1ec74296-74e2-4205-8728-1a8e6dff998a"
 
 # override these from the commandline:
@@ -68,19 +64,15 @@ replace-cdn-url: config-env config-p2-env
 config-p2-env:
 ifeq "$(TARGET_ENV)" "testing"
   P2_FE_CONFIG := $(P2_FE_CONFIG_TESTING)
-  P2_MFE_TV := $(P2_MFE_TV_TESTING)
   P2_MFE_XB := $(P2_MFE_XB_TESTING)
 else ifeq "$(TARGET_ENV)" "staging"
   P2_FE_CONFIG := $(P2_FE_CONFIG_STAGING)
-  P2_MFE_TV := $(P2_MFE_TV_STAGING)
   P2_MFE_XB := $(P2_MFE_XB_STAGING)
 else ifeq "$(TARGET_ENV)" "alpha"
   P2_FE_CONFIG := $(P2_FE_CONFIG_ALPHA)
-  P2_MFE_TV := $(P2_MFE_TV_ALPHA)
   P2_MFE_XB := $(P2_MFE_XB_ALPHA)
 else ifeq "$(TARGET_ENV)" "production"
   P2_FE_CONFIG := $(P2_FE_CONFIG_PRODUCTION)
-  P2_MFE_TV := $(P2_MFE_TV_PRODUCTION)
   P2_MFE_XB := $(P2_MFE_XB_PRODUCTION)
 else
   $(error "TARGET_ENV is invalid (must be one of: 'testing', 'staging', 'alpha' or 'production') but was '$(TARGET_ENV)'" )
@@ -122,9 +114,8 @@ endif
 .PHONY: activate-p2
 activate-p2:
 	echo
-	echo "=== Activating release of XB and TV in *$(TARGET_ENV)* P2.0 ==="
+	echo "=== Activating release of Crosstabs in *$(TARGET_ENV)* P2.0 ==="
 	echo "---------------------------------------------------------------"
-	curl "$(P2_FE_CONFIG)v2/configurations" -H 'Content-Type: application/json' --data-raw '{"microfrontend_id":$(P2_MFE_TV),"commit_id":"$(REVISION)"}'
 	curl "$(P2_FE_CONFIG)v2/configurations" -H 'Content-Type: application/json' --data-raw '{"microfrontend_id":$(P2_MFE_XB),"commit_id":"$(REVISION)"}'
 
 
@@ -135,5 +126,4 @@ activate-p2-feature-branch:
 	@echo "------------------------------------------------------------------------------------------------------------------"
 	@if test -z "$(P2_NAMESPACE)"; then echo "There has to be feature branch defined"; exit 1; fi
 	curl "$(P2_FE_CONFIG)v2/feature_branches_github_actions" --request POST -H 'Content-Type: application/json' --data-raw '{"feature_branch_name": "$(P2_NAMESPACE)", "application_name": "platform2", "microfrontend_name": "crosstabs", "commit_id": "$(REVISION)"}'
-	curl "$(P2_FE_CONFIG)v2/feature_branches_github_actions" --request POST -H 'Content-Type: application/json' --data-raw '{"feature_branch_name": "$(P2_NAMESPACE)", "application_name": "platform2", "microfrontend_name": "tv-rf", "commit_id": "$(REVISION)"}'
 
