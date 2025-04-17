@@ -40,8 +40,7 @@ jobs:
     - name: deploy-revision-build
       run: |
         cd /pro
-        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make build_xb2
-        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make build_tv2
+        TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make build
         cd deploy
         TARGET_ENV=${{ inputs.target_env }} NODE_ENV=production make replace-cdn-url
         echo "The look of /pro directory after build:"
@@ -57,20 +56,20 @@ jobs:
 
     - name: deploy-revision-release-and-activate-p2
       id: deploy-revision-release-and-activate-p2
-      if: ${{ github.ref != 'refs/heads/production' && github.ref != 'refs/heads/master' }}
+      if: ${{ github.ref != 'refs/heads/production' && github.ref != 'refs/heads/main' }}
       run: |
         printf "%s" "${{ secrets.json_credentials }}" > ${HOME}/gcloud-service-key.json
         cd /pro/deploy
         TARGET_ENV=${{ inputs.target_env }} GITHUB_REF=${{ github.ref_name }} GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
 
     - name: deploy-p2-revision-activate-p2
-      # Run only on master branch, on staging/testing
-      if: ${{ github.ref == 'refs/heads/master' && ( inputs.target_env == 'testing' || inputs.target_env == 'staging' || inputs.target_env == 'alpha' ) }}
+      # Run only on main branch, on staging/testing
+      if: ${{ github.ref == 'refs/heads/main' && ( inputs.target_env == 'testing' || inputs.target_env == 'staging' || inputs.target_env == 'alpha' ) }}
       run: |
         cd /pro/deploy; TARGET_ENV=${{ inputs.target_env }} make release-and-activate-p2
    
     - name: deploy-revision-release-only
-      # Run only on master branch, on production
+      # Run only on main branch, on production
       # Release to P2 production under "elm-release" feature branch for QA run
       id: deploy-revision-release-only
       if: ${{ github.ref == 'refs/heads/production' && inputs.target_env == 'production' }}

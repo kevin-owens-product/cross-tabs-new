@@ -31,7 +31,7 @@ jobs:
 
   quality-checks:
     runs-on: ${{ fromJSON(vars.GWI_DEFAULT_RUNNERS) }}
-    if: ${{ github.ref == 'refs/heads/production' || github.ref == 'refs/heads/master' }}
+    if: ${{ github.ref == 'refs/heads/production' || github.ref == 'refs/heads/main' }}
     concurrency:
       group: quality-checks-${{ github.ref }}
       cancel-in-progress: true
@@ -65,9 +65,7 @@ jobs:
 
           echo "Running tests"
           echo "============="
-          make test_share
-          make test_xb2
-          make test_tv2
+          make test
 
   deploy-testing:
     uses: ./.github/workflows/deploy-environment.yml
