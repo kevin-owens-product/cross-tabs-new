@@ -2,7 +2,7 @@
 @use "crosstab-builder/XB2/src/XB2/Share/Platform2/colors" as P2Colors;
 
 @mixin styles {
-    @include zindex.layer("Notifications");
+    @include zindex.layer("P2ModalOverlay");
 
     position: fixed;
     display: flex;
