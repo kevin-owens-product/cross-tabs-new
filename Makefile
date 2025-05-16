@@ -1,12 +1,10 @@
 .DEFAULT_GOAL = help
 
+ROOT_PATH := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 NODE_ENV ?= development
 TARGET_ENV ?= development
-DEBUG_MODE ?= false
-
-# These are the only posible values for ports. Other ports have conflicts with the API.
-BUILD_SERVE_PORT = 3900
-KERNEL_PORT = 4200
+TEST_OPTIONS ?= ""
+DEBUG_MODE ?= ""
 
 .SILENT: print_env
 .PHONY: print_env
@@ -36,11 +34,6 @@ clean: ## Cleans every asset built by Elm, TS, yarn or another stuff.
 install: ## Installs every dependency needed to build the project. Expects `yarn` to be installed globally.
 	@echo "\033[36mInstalling dependencies...\033[0m"
 	yarn install
-
-.PHONY: serve_build
-serve_build: ## Serves the build/ folder
-	@echo "\033[36mServing build folder...\033[0m"
-	mkdir -p build && cd build && npx http-server -p $(BUILD_SERVE_PORT) --cors -c-1
 
 .PHONY: lint
 lint: ## Lints the project with elm-review, eslint and stylelint.
@@ -85,15 +78,110 @@ test_watch: ## Runs the tests in watch mode.
 	@echo "\033[36mTesting in watch mode...\033[0m"
 	cd src/crosstab-builder/XB2 && TARGET_ENV=test && find . -name '*.elm' | grep "^./tests" | xargs npx elm-test-rs --watch && cd -
 
+# For start we are expecting `yarn` is installed globally
+
+.PHONY: all
+all: yarn.lock
+
+dev_env:
+	@echo " - setup DEV env"
+	$(eval include dev.env)
+	$(eval export)
+
+.PHONY: no_watch_mode
+no_watch_mode:
+	@echo " - no watch mode build"
+	$(eval WATCH_MODE=false)
+
+yarn.lock: node_modules package.json
+	$(MAKE clean)
+	yarn install --production=false
+
+node_modules:
+	mkdir -p $@
+
+.PHONY: clean_all
+clean_all: clean
+	rm -fr node_modules
+
+.PHONY: check_unused_scss_files
+check_unused_scss_files:
+	@echo "Check unused SCSS files"
+	@./bin/check_unused_scss_files.sh
+
+# Tests
+
+.SILENT: test_xb2
+.PHONY: test_xb2
+test_xb2:
+	echo "Run crosstab-builder 2.0 tests"
+	cd src/crosstab-builder/XB2 && TARGET_ENV=test && find . -name '*.elm' | grep "^./tests" | xargs npx elm-test-rs $(TEST_OPTIONS) && cd -
+
+.SILENT: test_xb
+.PHONY: test_xb
+test_xb: test_xb2
+
+# All tests running
+
+.PHONY: test
+test: override TEST_OPTIONS = ""
+test: test_xb
+
+# Coverage
+
+.SILENT: cover_share
+.PHONY: cover_share
+cover_share:
+	echo "Checking coverage of _share"
+	cd src/_share && elm-coverage --open && cd -
+
+.SILENT: cover_xb2
+.PHONY: cover_xb2
+cover_xb2:
+	echo "Checking coverage of crosstab-builder 2.0"
+	cd src/crosstab-builder/XB2 && elm-coverage --open && cd -
+
+.SILENT: cover_xb
+.PHONY: cover_xb
+cover_xb: cover_xb2
+
+# All coverage check running
+
+.PHONY: cover
+cover: override TEST_OPTIONS = ""
+cover: cover_xb
+
+# Build end development
+
+PORT ?= 3900
+
 .PHONY: start
-start: print_env build
-start: ## Starts the project in development mode.
-	@echo "\033[36mStarting project...\033[0m"
-	make serve_build
-	
-	
+start:
+	npx webpack serve --hot --port 3000 --host 0.0.0.0
+
+.PHONY: p2_serve_build_files_server
+p2_serve_build_files_server:
+	mkdir -p build && cd build && npx http-server -p $(PORT) --cors -c-1 &
+
+.PHONY: p2_serve_build_files_server_no_background
+p2_serve_build_files_server_no_background:
+	mkdir -p build && cd build && npx http-server -p $(PORT) --cors -c-1
+
+.PHONY: start_crosstabs_for_P2
+start_crosstabs_for_P2: dev_env p2_serve_build_files_server build_xb2
+
+.PHONY: start_for_P2
+start_for_P2: dev_env no_watch_mode build_tv2 build_xb2 p2_serve_build_files_server_no_background
+
 .PHONY: build
 build: print_env
 build: ## Builds the project in watch mode.
 	@echo "\033[36mBuilding project...\033[0m"
 	npx webpack --progress --config src/crosstab-builder/XB2/webpack.config.js
+
+.PHONY: build_xb2
+build_xb2:
+	npx webpack --progress --config src/crosstab-builder/XB2/webpack.config.js
+
+.PHONY: build_for_p20
+build_for_p20: build_xb2

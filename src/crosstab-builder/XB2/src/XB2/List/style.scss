@@ -348,8 +348,6 @@
         &--select {
             @include P2Components.item-checkbox;
 
-            color: P2Colors.$navy;
-
             &--input {
                 top: auto;
                 left: auto;
