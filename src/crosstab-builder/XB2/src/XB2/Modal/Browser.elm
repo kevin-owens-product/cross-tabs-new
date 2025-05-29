@@ -181,7 +181,7 @@ expressionToSelectedItem options expression =
                             XB2.Share.Data.Labels.splitQuestionCode leafData.namespaceAndQuestionCode
 
                         ( _, datapointCode ) =
-                            XB2.Share.Data.Labels.splitQuestionAndDatapointCode questionAndDatapointCode
+                            XB2.Share.Data.Labels.splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode questionCode
 
                         questionName =
                             options.questions
@@ -243,7 +243,7 @@ expressionToSelectedItem options expression =
                                             XB2.Share.Data.Labels.splitQuestionCode leafData.namespaceAndQuestionCode
 
                                         ( _, datapointCode ) =
-                                            XB2.Share.Data.Labels.splitQuestionAndDatapointCode questionAndDatapointCode
+                                            XB2.Share.Data.Labels.splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode questionCode
 
                                         questionName =
                                             options.questions
@@ -304,7 +304,7 @@ expressionToSelectedItem options expression =
                     XB2.Share.Data.Labels.splitQuestionCode Expression.allInternetUsersLeafData.namespaceAndQuestionCode
 
                 ( _, datapointCode ) =
-                    XB2.Share.Data.Labels.splitQuestionAndDatapointCode (NonemptyList.head Expression.allInternetUsersLeafData.questionAndDatapointCodes)
+                    XB2.Share.Data.Labels.splitQuestionAndDatapointCodeCheckingWavesQuestion (NonemptyList.head Expression.allInternetUsersLeafData.questionAndDatapointCodes) questionCode
             in
             SelectedAttribute
                 { namespaceCode = namespaceCode
@@ -353,7 +353,7 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
                             XB2.Share.Data.Labels.splitQuestionCode leafData.namespaceAndQuestionCode
 
                         ( _, datapointCode ) =
-                            XB2.Share.Data.Labels.splitQuestionAndDatapointCode questionAndDatapointCode
+                            XB2.Share.Data.Labels.splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode questionCode
 
                         questionName =
                             options.questions
@@ -412,7 +412,7 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
                                         XB2.Share.Data.Labels.splitQuestionCode leafData.namespaceAndQuestionCode
 
                                     ( _, datapointCode ) =
-                                        XB2.Share.Data.Labels.splitQuestionAndDatapointCode questionAndDatapointCode
+                                        XB2.Share.Data.Labels.splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode questionCode
 
                                     questionName =
                                         options.questions

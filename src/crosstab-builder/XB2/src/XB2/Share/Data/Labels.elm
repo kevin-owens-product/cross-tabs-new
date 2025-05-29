@@ -56,6 +56,7 @@ module XB2.Share.Data.Labels exposing
     , questionCodeToNamespaceCode
     , regionName
     , splitQuestionAndDatapointCode
+    , splitQuestionAndDatapointCodeCheckingWavesQuestion
     , splitQuestionCode
     , waveYear
     , wavesByYears
@@ -905,6 +906,24 @@ splitQuestionAndDatapointCode questionAndDatapointCode =
 
         _ ->
             ( XB2.Share.Data.Id.fromString questionAndDatapointCode_, XB2.Share.Data.Id.fromString questionAndDatapointCode_ )
+
+
+{-| We have a platform constraint related to datapoint codes for `"waves"` question
+having an underscore (`_`) thus making them need to have it when doing any request with
+them in the BE. This means that we can't use the `splitQuestionAndDatapointCode` normally
+as it would always split by `_` so we check first if we're doing the split for a
+`"waves"` question.
+-}
+splitQuestionAndDatapointCodeCheckingWavesQuestion :
+    QuestionAndDatapointCode
+    -> ShortQuestionCode
+    -> ( ShortQuestionCode, ShortDatapointCode )
+splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode questionCode =
+    if XB2.Share.Data.Id.unwrap questionCode == "waves" then
+        ( questionCode, XB2.Share.Data.Id.fromString <| XB2.Share.Data.Id.unwrap questionAndDatapointCode )
+
+    else
+        splitQuestionAndDatapointCode questionAndDatapointCode
 
 
 addQuestionToDatapointCode : ShortQuestionCode -> DatapointAndSuffixCode -> ( QuestionAndDatapointCode, Maybe SuffixCode )
