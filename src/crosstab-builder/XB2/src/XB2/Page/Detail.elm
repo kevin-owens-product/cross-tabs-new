@@ -350,7 +350,7 @@ configure rec =
     , shareAndCopyLink = rec.shareAndCopyLink
     , headerConfig =
         { navigateTo = rec.msg << NavigateTo
-        , startExport = \maybeProject -> rec.msg <| StartExport maybeProject
+        , startExport = \maybeProject -> rec.msg <| StartExport Nothing maybeProject
         , save = \maybeProject -> rec.msg << saveMsg maybeProject
         , saveAsNew = rec.msg << OpenSaveAsNew
         , deleteCrosstab = rec.msg << DeleteCrosstab
@@ -397,7 +397,7 @@ crosstabCellLoader =
 
 type MeasuredAfterQueueCmd
     = ApplyHeatmapCmd Metric
-    | ExportTableCmd (Maybe XBProject)
+    | ExportTableCmd (Maybe SelectionMap.SelectionMap) (Maybe XBProject)
     | ApplySort SortConfig
     | ApplyResort (NonEmpty SortConfig)
 
@@ -418,7 +418,12 @@ type MouseDownMovemenet
 
 type alias Model =
     { crosstabData : UndoRedo UndoEvent CrosstabData
-    , exportWaitingForQuestions : Maybe { project : Maybe XBProject, time : Posix }
+    , exportWaitingForQuestions :
+        Maybe
+            { project : Maybe XBProject
+            , time : Posix
+            , selectionMap : Maybe SelectionMap.SelectionMap
+            }
     , -- This should probably be Maybe Http.Error with possible error of export request
       isExporting : Bool
 
@@ -1507,9 +1512,9 @@ type Msg
     | UpdateUserSettings XBUserSettings
     | CellLoaderMsg CrosstabCellLoader.Msg
     | TrackFullLoadAndProcessCmd MeasuredAfterQueueCmd { startTime : Posix, time : Posix }
-    | StartExport (Maybe XBProject)
-    | FullLoadAndExport (Maybe XBProject)
-    | Export (Maybe XBProject) Posix
+    | StartExport (Maybe SelectionMap.SelectionMap) (Maybe XBProject)
+    | FullLoadAndExport (Maybe SelectionMap.SelectionMap) (Maybe XBProject)
+    | Export (Maybe SelectionMap.SelectionMap) (Maybe XBProject) Posix
     | ExportSuccess ExportResponse
     | ExportFailure (Error ExportError)
     | AddProgressToExportDownload Float
@@ -1633,8 +1638,8 @@ type Msg
 getAfterQueueFinishedMsg : MeasuredAfterQueueCmd -> Msg
 getAfterQueueFinishedMsg afterQueueFinishedCmd =
     case afterQueueFinishedCmd of
-        ExportTableCmd data ->
-            StartExport data
+        ExportTableCmd maybeSelectionMap data ->
+            StartExport maybeSelectionMap data
 
         ApplyHeatmapCmd data ->
             ApplyHeatmap (Just data)
@@ -1832,8 +1837,8 @@ onP2StoreChange config route flags newP2Store p2StoreMsg model =
                     )
                 |> (\( m, cmds ) ->
                         case m.exportWaitingForQuestions of
-                            Just { project, time } ->
-                                updateExport config route flags project time newP2Store m
+                            Just { project, time, selectionMap } ->
+                                updateExport config route flags selectionMap project time newP2Store m
                                     |> Cmd.add cmds
 
                             Nothing ->
@@ -5563,8 +5568,8 @@ fetchQuestionsForCrosstab config ( model, cmds ) =
         |> addFetchQuestions
 
 
-updateExport : Config msg -> XB2.Router.Route -> Flags -> Maybe XBProject -> Posix -> XB2.Share.Store.Platform2.Store -> Model -> ( Model, Cmd msg )
-updateExport config route flags maybeProject date p2Store model =
+updateExport : Config msg -> XB2.Router.Route -> Flags -> Maybe SelectionMap.SelectionMap -> Maybe XBProject -> Posix -> XB2.Share.Store.Platform2.Store -> Model -> ( Model, Cmd msg )
+updateExport config route flags maybeSelectionMap maybeProject date p2Store model =
     case
         currentCrosstab model
             |> ACrosstab.questionCodes
@@ -5588,7 +5593,43 @@ updateExport config route flags maybeProject date p2Store model =
                     }
 
                 currentCrosstab_ =
-                    currentCrosstab model
+                    case maybeSelectionMap of
+                        Just _ ->
+                            let
+                                fullCrosstab =
+                                    currentCrosstab model
+
+                                nonSelectedRows =
+                                    List.filterMap
+                                        (\row ->
+                                            if row.isSelected then
+                                                Nothing
+
+                                            else
+                                                Just ( Row, row )
+                                        )
+                                        (ACrosstab.getRows fullCrosstab)
+
+                                nonSelectedColumns =
+                                    List.filterMap
+                                        (\col ->
+                                            if col.isSelected then
+                                                Nothing
+
+                                            else
+                                                Just ( Column, col )
+                                        )
+                                        (ACrosstab.getColumns fullCrosstab)
+
+                                ( crosstabWithCellsRemoved, _ ) =
+                                    ACrosstab.removeAudiences
+                                        (nonSelectedRows ++ nonSelectedColumns)
+                                        fullCrosstab
+                            in
+                            crosstabWithCellsRemoved
+
+                        Nothing ->
+                            currentCrosstab model
 
                 sortConfig =
                     Sort.convertSortToSortConfig metadata.sort
@@ -5653,7 +5694,15 @@ updateExport config route flags maybeProject date p2Store model =
                     )
 
         Nothing ->
-            Cmd.pure { model | exportWaitingForQuestions = Just { project = maybeProject, time = date } }
+            Cmd.pure
+                { model
+                    | exportWaitingForQuestions =
+                        Just
+                            { project = maybeProject
+                            , time = date
+                            , selectionMap = maybeSelectionMap
+                            }
+                }
 
 
 exportNotificationId : String
@@ -5784,7 +5833,7 @@ update config route flags xbStore p2Store msg model =
                                 ApplyHeatmapCmd _ ->
                                     getEvent "heatmap"
 
-                                ExportTableCmd _ ->
+                                ExportTableCmd _ _ ->
                                     getEvent "export"
 
                                 ApplySort _ ->
@@ -5797,12 +5846,12 @@ update config route flags xbStore p2Store msg model =
                         |> Cmd.withTrigger fullLoadedAnalyticsCmd
                         |> Cmd.addTrigger (getAfterQueueFinishedMsg afterQueueCmd |> config.msg)
 
-                StartExport maybeProject ->
+                StartExport maybeSelectionMap maybeProject ->
                     -- Here is when you already confirmed you wanted to export
                     if flags.can XB2.Share.Permissions.Export then
                         (if CrosstabCellLoader.isFullyLoaded <| .cellLoaderModel <| currentCrosstabData model then
                             ( { model | isExporting = True }
-                            , Task.perform (config.msg << Export maybeProject) Time.now
+                            , Task.perform (config.msg << Export maybeSelectionMap maybeProject) Time.now
                             )
 
                          else
@@ -5814,6 +5863,7 @@ update config route flags xbStore p2Store msg model =
                                 |> Cmd.withTrigger
                                     (config.openModal <|
                                         Modal.initConfirmFullLoadForExport
+                                            maybeSelectionMap
                                             (CrosstabCellLoader.notLoadedCellCount <| .cellLoaderModel <| currentCrosstabData model)
                                             maybeProject
                                     )
@@ -5856,12 +5906,12 @@ update config route flags xbStore p2Store msg model =
                             )
                         |> Cmd.addTrigger config.closeModal
 
-                FullLoadAndExport maybeProject ->
+                FullLoadAndExport maybeSelectionMap maybeProject ->
                     Cmd.pure model
                         |> updateCellLoader config
                             (CrosstabCellLoader.reloadNotAskedCellsIfFullLoadRequestedWithOriginAndMsg
                                 config.cellLoaderConfig
-                                (ExportTableCmd maybeProject)
+                                (ExportTableCmd maybeSelectionMap maybeProject)
                                 AudienceIntersect.Export
                             )
                         |> Cmd.addTrigger config.closeModal
@@ -5888,7 +5938,7 @@ update config route flags xbStore p2Store msg model =
                                     |> Cmd.pure
                             )
 
-                Export maybeProject date ->
+                Export maybeSelectionMap maybeProject date ->
                     Cmd.pure model
                         |> updateCellLoader config
                             (\cellLoaderModal ->
@@ -5905,7 +5955,7 @@ update config route flags xbStore p2Store msg model =
                         |> Cmd.add (Process.sleep 1200 |> Task.perform (\_ -> config.msg <| AddProgressToExportDownload 40))
                         |> Cmd.add (Process.sleep 2000 |> Task.perform (\_ -> config.msg <| AddProgressToExportDownload 8))
                         |> Cmd.add (Process.sleep 3000 |> Task.perform (\_ -> config.msg <| AddProgressToExportDownload 11))
-                        |> Glue.updateWith Glue.id (updateExport config route flags maybeProject date p2Store)
+                        |> Glue.updateWith Glue.id (updateExport config route flags maybeSelectionMap maybeProject date p2Store)
 
                 SwapBasesOrder originIndex destinationIndex ->
                     let
@@ -6151,7 +6201,7 @@ update config route flags xbStore p2Store msg model =
                             model
                                 |> Cmd.withTrigger (config.openModal Modal.ConfirmCancelApplyingHeatmap)
 
-                        Just (ExportTableCmd _) ->
+                        Just (ExportTableCmd _ _) ->
                             model
                                 |> Cmd.withTrigger (config.openModal Modal.ConfirmCancelExport)
 
@@ -8391,7 +8441,10 @@ tableConfig xbModel maybeProject xbStore =
     , export =
         { canProcess = not << ACrosstab.isEmpty << currentCrosstab
         , isExporting = .isExporting
-        , start = StartExport maybeProject
+        , start = StartExport Nothing maybeProject
+        , startForSelectedCells =
+            \selectionMap ->
+                StartExport (Just selectionMap) maybeProject
         }
     , sharing =
         { shareMsg =

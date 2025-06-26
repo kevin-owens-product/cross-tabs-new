@@ -223,6 +223,7 @@ type alias Config model msg =
         { canProcess : model -> Bool
         , isExporting : model -> Bool
         , start : msg
+        , startForSelectedCells : SelectionMap.SelectionMap -> msg
         }
     , sharing :
         { shareMsg : msg
@@ -598,6 +599,13 @@ selectionPanelView config p2Store model =
                     "Affix attributes/audiences"
                     P2Icons.edit
                     config.openAttributeBrowser
+                    Nothing
+                , buttonView
+                    False
+                    (WeakCss.add "action" btnClass)
+                    "Export selected cells"
+                    P2Icons.export
+                    (config.export.startForSelectedCells (config.getSelectionMap model))
                     Nothing
                 , buttonView
                     False

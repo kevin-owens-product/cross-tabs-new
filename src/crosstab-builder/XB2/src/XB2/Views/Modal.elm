@@ -144,6 +144,7 @@ import XB2.Data.AudienceItemId as AudienceItemId
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Metric as Metric exposing (Metric)
+import XB2.Data.SelectionMap as SelectionMap
 import XB2.Modal.Browser as ModalBrowser
     exposing
         ( AffixingOrEditingItems(..)
@@ -221,7 +222,7 @@ type Modal
     | UnsavedChangesAlert { newRoute : Route }
     | SaveAsAudience SaveAsAudienceData
     | ConfirmFullLoadForHeatmap Int Metric
-    | ConfirmFullLoadForExport Int (Maybe XBProject)
+    | ConfirmFullLoadForExport (Maybe SelectionMap.SelectionMap) Int (Maybe XBProject)
     | ConfirmFullLoadForExportFromList Int XBProjectFullyLoaded
     | ConfirmCancelExport
     | ConfirmCancelExportFromList
@@ -673,7 +674,7 @@ type alias Config msg =
 
     -- Confirm and full load
     , fullLoadAndApplyHeatmap : Metric -> msg
-    , fullLoadAndExport : Maybe XBProject -> msg
+    , fullLoadAndExport : Maybe SelectionMap.SelectionMap -> Maybe XBProject -> msg
     , fullLoadAndExportFromList : XBProjectFullyLoaded -> msg
     , confirmCancelFullLoad : msg
     , confirmCancelFullLoadFromList : msg
@@ -827,7 +828,7 @@ modalSize modal =
         ConfirmFullLoadForHeatmap _ _ ->
             Small
 
-        ConfirmFullLoadForExport _ _ ->
+        ConfirmFullLoadForExport _ _ _ ->
             Small
 
         ConfirmFullLoadForExportFromList _ _ ->
@@ -1136,7 +1137,7 @@ initConfirmFullLoadForHeatmap =
     ConfirmFullLoadForHeatmap
 
 
-initConfirmFullLoadForExport : Int -> Maybe XBProject -> Modal
+initConfirmFullLoadForExport : Maybe SelectionMap.SelectionMap -> Int -> Maybe XBProject -> Modal
 initConfirmFullLoadForExport =
     ConfirmFullLoadForExport
 
@@ -1353,7 +1354,7 @@ setState state modal =
         ConfirmFullLoadForHeatmap _ _ ->
             modal
 
-        ConfirmFullLoadForExport _ _ ->
+        ConfirmFullLoadForExport _ _ _ ->
             modal
 
         ConfirmFullLoadForExportFromList _ _ ->
@@ -2391,7 +2392,7 @@ subscriptions config modal =
                 ConfirmFullLoadForHeatmap _ _ ->
                     ( config.closeModal, Sub.none )
 
-                ConfirmFullLoadForExport _ _ ->
+                ConfirmFullLoadForExport _ _ _ ->
                     ( config.closeModal, Sub.none )
 
                 ConfirmFullLoadForExportFromList _ _ ->
@@ -3986,9 +3987,9 @@ contents flags config xbStore p2Store attributeBrowserInitialState shouldPassIni
                 "apply a heatmap"
                 "Cancel"
 
-        ConfirmFullLoadForExport notLoadedCount maybeProject ->
+        ConfirmFullLoadForExport maybeSelectionMap notLoadedCount maybeProject ->
             confirmFullLoadContents
-                (config.fullLoadAndExport maybeProject)
+                (config.fullLoadAndExport maybeSelectionMap maybeProject)
                 config.closeModal
                 notLoadedCount
                 "Export"

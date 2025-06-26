@@ -271,7 +271,7 @@ modalConfig c =
                             baseAudiencesOrder
                             activeBaseIndex
     , fullLoadAndApplyHeatmap = c.msg << DetailMsg << Detail.FullLoadAndApplyHeatmap
-    , fullLoadAndExport = c.msg << DetailMsg << Detail.FullLoadAndExport
+    , fullLoadAndExport = \maybeSelectionMap -> c.msg << DetailMsg << Detail.FullLoadAndExport maybeSelectionMap
     , fullLoadAndExportFromList = c.msg << ListMsg << XBList.FullLoadAndExport
     , confirmCancelFullLoad = c.msg <| DetailMsg Detail.ConfirmCancelFullTableLoad
     , confirmCancelFullLoadFromList = c.msg <| ListMsg XBList.ConfirmCancelFullTableLoad
