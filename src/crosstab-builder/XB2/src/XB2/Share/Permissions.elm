@@ -127,6 +127,9 @@ fromUser { planHandle, customerFeatures } =
                 PlusEnterprise ->
                     []
 
+                Teams ->
+                    []
+
                 AnotherPlan _ ->
                     []
 

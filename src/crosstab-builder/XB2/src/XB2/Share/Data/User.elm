@@ -31,6 +31,7 @@ type Plan
     | OpenAccessViewOnly
     | Plus
     | PlusEnterprise
+    | Teams
     | AnotherPlan String
 
 
@@ -68,6 +69,9 @@ planDecoder =
 
                 "plus_enterprise" ->
                     Decode.succeed PlusEnterprise
+
+                "teams" ->
+                    Decode.succeed Teams
 
                 anotherPlan ->
                     Decode.succeed (AnotherPlan anotherPlan)
@@ -343,6 +347,9 @@ planToString plan =
 
         PlusEnterprise ->
             "plus_enterprise"
+
+        Teams ->
+            "teams"
 
         AnotherPlan anotherPlan ->
             anotherPlan
