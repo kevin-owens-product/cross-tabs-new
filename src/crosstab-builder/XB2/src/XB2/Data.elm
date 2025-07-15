@@ -98,6 +98,7 @@ import XB2.Data.Average as Average exposing (Average, AverageTimeFormat)
 import XB2.Data.Metric as Metric exposing (Metric)
 import XB2.Data.MetricsTransposition as MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Zod.Optional as Optional
 import XB2.List.Sort exposing (ProjectOwner(..))
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
@@ -376,6 +377,7 @@ type alias XBProjectMetadata =
     , sort : Sort
     , headerSize : XBProjectHeaderSize
     , frozenRowsAndColumns : ( Int, Int )
+    , minimumSampleSize : Optional.Optional Int
     }
 
 
@@ -629,6 +631,11 @@ defaultFrozenCells =
     ( 0, 0 )
 
 
+defaultMinimumSampleSize : Optional.Optional Int
+defaultMinimumSampleSize =
+    Optional.Undefined
+
+
 {-| The default width and height of the top-left header (the one with the
 _+ Add an attribute / audience_ button).
 
@@ -663,6 +670,7 @@ metadataDecoder =
             (Decode.optionalField "frozenCells" frozenCellsDecoder
                 |> Decode.map (Maybe.withDefault defaultFrozenCells)
             )
+        |> Decode.andMap (Optional.decodeField "minimumSampleSize" Decode.int)
 
 
 {-| TODO: Move this into its own module or related to `CrosstabProject` type.
@@ -685,6 +693,11 @@ encodeMetadata metadata =
             ]
       )
     ]
+        |> Optional.addFieldsToKeyValuePairs
+            [ ( "minimumSampleSize"
+              , Optional.map Encode.int metadata.minimumSampleSize
+              )
+            ]
         |> List.addIf (metadata.headerSize /= defaultProjectHeaderSize)
             ( "headerSize"
             , Encode.object
@@ -710,6 +723,7 @@ defaultMetadata =
     , sort = Sort.empty
     , headerSize = defaultProjectHeaderSize
     , frozenRowsAndColumns = defaultFrozenCells
+    , minimumSampleSize = defaultMinimumSampleSize
     }
 
 

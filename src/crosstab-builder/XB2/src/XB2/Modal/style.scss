@@ -593,6 +593,27 @@
         }
     }
 
+    &__minimum-sample-size-modal {
+        @include P2Components.modal-commons;
+        @include xb2-stateful-modal;
+        @include P2Components.text-input;
+
+        &--header {
+            margin-bottom: 26px;
+        }
+
+        &--main {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+        }
+
+        &--input {
+            max-width: 100px;
+            text-align: right;
+        }
+    }
+
     &__confirm-modal {
         @include P2Components.modal-commons;
 

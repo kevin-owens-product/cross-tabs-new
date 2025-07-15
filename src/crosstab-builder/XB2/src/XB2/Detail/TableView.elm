@@ -60,6 +60,7 @@ import XB2.Data.Metric as Metric exposing (Metric(..))
 import XB2.Data.MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
 import XB2.Data.SelectionMap as SelectionMap exposing (SelectionMap)
+import XB2.Data.Zod.Optional as Optional
 import XB2.Detail.Common as Common
     exposing
         ( Dropdown(..)
@@ -203,6 +204,7 @@ type alias Config model msg =
     , getAllLocationsSet : XB2.Share.Store.Platform2.Store -> model -> AnySet String LocationCode
     , getActiveWaves : XB2.Share.Store.Platform2.Store -> model -> List Wave
     , openHeatmapSelection : msg
+    , openMinimumSampleSizeModal : msg
     , downloadDebugDump : msg
     , withDropdownMenu : DropdownMenu.DropdownMenuOptions msg -> Html msg
     , scrollBasesPanelRight : msg
@@ -273,6 +275,10 @@ type alias Config model msg =
     -- Cell freezing
     , getFrozenRowsColumns : model -> ( Int, Int )
     , setFrozenRowsColumns : ( Int, Int ) -> msg
+
+    -- Sample size
+    , getMinimumSampleSize : model -> Optional.Optional Int
+    , setMinimumSampleSize : Optional.Optional Int -> msg
 
     -- messages
     , noOp : msg
@@ -2049,6 +2055,12 @@ viewOptionsDropdownView config can model { isDropdownOpen, isHeaderCollapsed, us
                         ]
                     , DropdownItem.view
                         [ DropdownItem.class dropdownMenuClass
+                        , DropdownItem.onClick config.openMinimumSampleSizeModal
+                        , DropdownItem.label "Minimum sample size"
+                        , DropdownItem.leftIcon P2Icons.eyeCrossed
+                        ]
+                    , DropdownItem.view
+                        [ DropdownItem.class dropdownMenuClass
                         , DropdownItem.onClick config.switchCrosstab
                         , DropdownItem.label "Swap rows & columns"
                         , DropdownItem.leftIcon P2Icons.random
@@ -2961,6 +2973,41 @@ heatmapColorAttrs heatmapScale column row cell =
             []
 
         ( _, AverageData _ ) ->
+            []
+
+
+minimumSampleSizeOpacityAttrs : Optional.Optional Int -> ACrosstab.Cell -> List (Attribute msg)
+minimumSampleSizeOpacityAttrs optionalMinSampleSize cell =
+    case Optional.toMaybe optionalMinSampleSize of
+        Just minSampleSize ->
+            case cell.data of
+                AvAData data ->
+                    case data.data of
+                        Tracked.Success intersectResult ->
+                            let
+                                sampleSize =
+                                    AudienceIntersect.getValue Sample intersectResult
+                            in
+                            if round sampleSize < minSampleSize then
+                                [ Attrs.style "opacity" "0.25" ]
+
+                            else
+                                []
+
+                        Tracked.NotAsked ->
+                            []
+
+                        Tracked.Loading _ ->
+                            []
+
+                        Tracked.Failure _ ->
+                            []
+
+                AverageData _ ->
+                    -- There's no gray-out for average cells?
+                    []
+
+        Nothing ->
             []
 
 
@@ -4223,6 +4270,7 @@ cellView :
     , crosstab : AudienceCrosstab
     , metrics : List Metric
     , heatmapScale : Maybe HeatmapScale
+    , minimumSampleSize : Optional.Optional Int
     , base : BaseAudience
     , column : Key
     , row : Key
@@ -4941,7 +4989,7 @@ cellView p =
                         |> metricCellValueView
                         |> (::) incompatibilitiesWarningView
                         |> (::) (coefficientStretchingView value)
-                        |> Html.li (cellClassAttr :: heatmapColorAttrs p.heatmapScale p.column p.row cell)
+                        |> Html.li (cellClassAttr :: heatmapColorAttrs p.heatmapScale p.column p.row cell ++ minimumSampleSizeOpacityAttrs p.minimumSampleSize cell)
                 )
                 data.data
 
@@ -5283,6 +5331,7 @@ frozenCellsView :
     , rowHeaders : List Key
     , columnHeaders : List Key
     , heatmapScale : Maybe HeatmapScale
+    , minimumSampleSize : Optional.Optional Int
     , crosstab : AudienceCrosstab
     , metrics : List Metric
     , metricsTransposition : MetricsTransposition
@@ -5351,6 +5400,7 @@ frozenCellsView ({ visibleCells, switchAverageTimeFormatMsg, openTableWarning, a
                                 , crosstab = crosstab
                                 , metrics = metrics
                                 , heatmapScale = heatmapScale
+                                , minimumSampleSize = p.minimumSampleSize
                                 , base = base
                                 , column = column
                                 , row = row
@@ -5392,6 +5442,7 @@ cellsView :
     , rowHeaders : List Key
     , columnHeaders : List Key
     , heatmapScale : Maybe HeatmapScale
+    , minimumSampleSize : Optional.Optional Int
     , crosstab : AudienceCrosstab
     , metrics : List Metric
     , metricsTransposition : MetricsTransposition
@@ -5459,6 +5510,7 @@ cellsView ({ visibleCells, switchAverageTimeFormatMsg, openTableWarning, average
                                 , crosstab = crosstab
                                 , metrics = metrics
                                 , heatmapScale = heatmapScale
+                                , minimumSampleSize = p.minimumSampleSize
                                 , base = base
                                 , column = column
                                 , row = row
@@ -5866,6 +5918,7 @@ tableView triggers params =
                 , rowHeaders = frozenRowHeaders
                 , columnHeaders = frozenColumnHeaders
                 , heatmapScale = triggers.config.heatmapScale params.model
+                , minimumSampleSize = triggers.config.getMinimumSampleSize params.model
                 , crosstab = params.crosstab
                 , metrics = metrics
                 , metricsTransposition = metricsTransposition
@@ -5901,6 +5954,7 @@ tableView triggers params =
                 , rowHeaders = frozenRowHeaders
                 , columnHeaders = columnHeaders
                 , heatmapScale = triggers.config.heatmapScale params.model
+                , minimumSampleSize = triggers.config.getMinimumSampleSize params.model
                 , crosstab = params.crosstab
                 , metrics = metrics
                 , metricsTransposition = metricsTransposition
@@ -5936,6 +5990,7 @@ tableView triggers params =
                 , rowHeaders = rowHeaders
                 , columnHeaders = frozenColumnHeaders
                 , heatmapScale = triggers.config.heatmapScale params.model
+                , minimumSampleSize = triggers.config.getMinimumSampleSize params.model
                 , crosstab = params.crosstab
                 , metrics = metrics
                 , metricsTransposition = metricsTransposition
@@ -5969,6 +6024,7 @@ tableView triggers params =
             , rowHeaders = rowHeaders
             , columnHeaders = columnHeaders
             , heatmapScale = triggers.config.heatmapScale params.model
+            , minimumSampleSize = triggers.config.getMinimumSampleSize params.model
             , crosstab = params.crosstab
             , metrics = metrics
             , metricsTransposition = metricsTransposition

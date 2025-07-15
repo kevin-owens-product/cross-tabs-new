@@ -248,6 +248,7 @@ modalConfig c =
     , confirmUngroupFolder = c.msg << XBStoreActionFolder << UngroupFolder
     , applyMetricsSelection = c.msg << DetailMsg << Detail.Edit << Detail.ApplyMetricsSelection
     , applyHeatmap = c.msg << DetailMsg << Detail.ApplyHeatmap
+    , setMinimumSampleSize = c.msg << DetailMsg << Detail.Edit << Detail.SetMinimumSampleSize
     , saveGroupName = \direction -> c.msg << DetailMsg << Detail.Edit << Detail.SetGroupTitle direction
     , setOrCreateBaseAudience = c.msg << DetailMsg << Detail.Edit << Detail.UpdateOrCreateBaseAudiences << NonemptyList.singleton
     , affixGroup = \grouping operator addedItems groups affixedFrom -> c.msg <| DetailMsg <| Detail.Edit <| Detail.SaveAffixedGroup grouping operator addedItems groups affixedFrom

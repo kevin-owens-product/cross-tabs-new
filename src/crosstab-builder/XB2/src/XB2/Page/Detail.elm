@@ -139,6 +139,7 @@ import XB2.Data.MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
 import XB2.Data.SelectionMap as SelectionMap exposing (SelectionMap)
 import XB2.Data.UndoEvent as UndoEvent exposing (UndoEvent)
+import XB2.Data.Zod.Optional as Optional
 import XB2.DebugDump
 import XB2.Detail.Common as Common
     exposing
@@ -1490,6 +1491,7 @@ type EditMsg
         (List ACrosstab.CrosstabBaseAudience)
         Int
     | SetFrozenRowsColumns ( Int, Int )
+    | SetMinimumSampleSize (Optional.Optional Int)
 
 
 type TableSelectMsg
@@ -1570,6 +1572,7 @@ type Msg
     | AddAsNewBase ( Direction, ACrosstab.Key )
     | CreateNewBases Grouping (List ACrosstab.Key)
     | OpenHeatmapSelection
+    | OpenMinimumSampleSizeModal
     | ApplyHeatmap (Maybe Metric)
     | FullLoadAndApplyHeatmap Metric
     | DownloadDebugDump
@@ -4250,6 +4253,30 @@ updateEdit config route flags xbStore p2Store editMsg model =
                         )
                     )
 
+        SetMinimumSampleSize minimumSampleSize ->
+            let
+                newModel : Model
+                newModel =
+                    updateCrosstabData
+                        (updateProjectMetadata
+                            (\metadata ->
+                                { metadata
+                                    | minimumSampleSize = minimumSampleSize
+                                }
+                            )
+                        )
+                        model
+            in
+            Cmd.withTrigger config.closeModal newModel
+                |> Cmd.add
+                    (getAnalyticsCmd flags
+                        route
+                        Analytics.MinimumSampleSizeChanged
+                        { minimumSampleSize = minimumSampleSize }
+                        p2Store
+                        newModel
+                    )
+
         TransposeMetrics selectedMetrics ->
             let
                 { rowCount, colCount } =
@@ -6867,6 +6894,27 @@ update config route flags xbStore p2Store msg model =
                                 (Dom.focus elementToFocus)
                             )
 
+                OpenMinimumSampleSizeModal ->
+                    let
+                        elementToFocus : String
+                        elementToFocus =
+                            "modal-minimum-sample-size-text-input"
+
+                        currentMinimumSampleSize =
+                            currentMetadata model
+                                |> .minimumSampleSize
+                    in
+                    model
+                        |> Cmd.withTrigger
+                            (config.openModal <|
+                                Modal.initMinimumSampleSize currentMinimumSampleSize
+                            )
+                        |> Cmd.add
+                            (Task.attempt
+                                (always <| config.msg NoOp)
+                                (Dom.focus elementToFocus)
+                            )
+
                 DownloadDebugDump ->
                     let
                         filename =
@@ -8347,6 +8395,7 @@ tableConfig xbModel maybeProject xbStore =
     , openMetricsSelection = OpenMetricsSelection
     , openWavesSelection = OpenWavesDrawer
     , openHeatmapSelection = OpenHeatmapSelection
+    , openMinimumSampleSizeModal = OpenMinimumSampleSizeModal
     , removeSelectedAudiencesConfirm = OpenRemoveFromTableConfirmModal
     , removeAudience = Edit << RemoveAudience
     , duplicateAudience = Edit << DuplicateAudience
@@ -8524,6 +8573,10 @@ tableConfig xbModel maybeProject xbStore =
     -- Cell freezing
     , getFrozenRowsColumns = currentMetadata >> .frozenRowsAndColumns
     , setFrozenRowsColumns = Edit << SetFrozenRowsColumns
+
+    -- Sample size
+    , getMinimumSampleSize = currentMetadata >> .minimumSampleSize
+    , setMinimumSampleSize = Edit << SetMinimumSampleSize
 
     -- messages
     , noOp = NoOp

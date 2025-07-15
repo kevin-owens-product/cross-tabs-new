@@ -367,6 +367,11 @@ type Event
             , howMany : Int
             }
         )
+    | MinimumSampleSizeChanged
+        (EventParams
+            { minimumSampleSize : Optional.Optional Int
+            }
+        )
     | UndoClickedInAttrBrowser
     | RedoClickedInAttrBrowser
 
@@ -388,6 +393,16 @@ frozenItemToString frozenItem =
 
         FrozenColumn ->
             "column"
+
+
+minimumSampleSizeToString : Optional.Optional Int -> String
+minimumSampleSizeToString maybeSize =
+    case maybeSize of
+        Optional.Present size ->
+            String.fromInt size
+
+        Optional.Undefined ->
+            "n/a"
 
 
 type RespondentNumberType
@@ -1749,6 +1764,17 @@ encodeEvent flags route place event =
                          )
                        ]
                     ++ encodeCrosstabIdAttributeFromRoute route
+            )
+
+        MinimumSampleSizeChanged ({ extraParams } as params) ->
+            ( "P2 - Crosstabs - Minimum sample size changed"
+            , Encode.object <|
+                sharedEventParameters params
+                    ++ (( "min_sample_size"
+                        , Encode.string (minimumSampleSizeToString extraParams.minimumSampleSize)
+                        )
+                            :: encodeCrosstabIdAttributeFromRoute route
+                       )
             )
 
 

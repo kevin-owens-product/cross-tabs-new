@@ -64,6 +64,7 @@ port module XB2.Views.Modal exposing
     , initCreateFolder
     , initDuplicateProject
     , initMergeRowOrColum
+    , initMinimumSampleSize
     , initMoveOutOfFolder
     , initMoveToFolder
     , initRenameAverage
@@ -145,6 +146,7 @@ import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Metric as Metric exposing (Metric)
 import XB2.Data.SelectionMap as SelectionMap
+import XB2.Data.Zod.Optional as Optional
 import XB2.Modal.Browser as ModalBrowser
     exposing
         ( AffixingOrEditingItems(..)
@@ -219,6 +221,10 @@ type Modal
     | RenameAverage RenameAverageData
     | RenameBaseAudience ViewBaseGroupData
     | ChooseHeatmapMetric ChooseHeatmapMetricData
+    | MinimumSampleSize
+        { current : Optional.Optional Int
+        , original : Optional.Optional Int
+        }
     | UnsavedChangesAlert { newRoute : Route }
     | SaveAsAudience SaveAsAudienceData
     | ConfirmFullLoadForHeatmap Int Metric
@@ -639,6 +645,9 @@ type alias Config msg =
     -- Heatmap
     , applyHeatmap : Maybe Metric -> msg
 
+    -- Minimum sample size
+    , setMinimumSampleSize : Optional.Optional Int -> msg
+
     -- ViewGroup
     , saveGroupName :
         Direction
@@ -729,6 +738,7 @@ type Msg
     | SetBaseAudienceIndexHovered (Maybe Int)
     | SetBaseAudienceIndexSelectedToMoveWithKeyboard (Maybe Int)
     | SwapBasesOrder Int Int
+    | SetCurrentMinimumSampleSize (Optional.Optional Int)
 
 
 
@@ -815,6 +825,9 @@ modalSize modal =
 
         ChooseHeatmapMetric _ ->
             WebComponent
+
+        MinimumSampleSize _ ->
+            Small
 
         AttributesModal _ ->
             LargeCapped
@@ -1248,6 +1261,11 @@ initChooseHeatmapMetric selectedMetric =
         }
 
 
+initMinimumSampleSize : Optional.Optional Int -> Modal
+initMinimumSampleSize minimumSampleSize =
+    MinimumSampleSize { current = minimumSampleSize, original = minimumSampleSize }
+
+
 initChooseMetrics : AssocSet.Set Metric -> Modal
 initChooseMetrics toggledMetrics =
     ChooseMetrics
@@ -1313,6 +1331,9 @@ setState state modal =
             ConfirmUngroupFolder { m | state = state }
 
         ChooseMetrics _ ->
+            modal
+
+        MinimumSampleSize _ ->
             modal
 
         AttributesModal _ ->
@@ -1675,6 +1696,16 @@ update config route flags xbStore msg modal =
 
                         Nothing ->
                             Cmd.none
+                    )
+
+                _ ->
+                    ( modal, Cmd.none )
+
+        SetCurrentMinimumSampleSize minimumSampleSize ->
+            case modal of
+                MinimumSampleSize data ->
+                    ( MinimumSampleSize { data | current = minimumSampleSize }
+                    , Cmd.none
                     )
 
                 _ ->
@@ -2333,6 +2364,9 @@ subscriptions config modal =
                     ( config.closeModal, Sub.none )
 
                 ShareProject _ ->
+                    ( config.closeModal, Sub.none )
+
+                MinimumSampleSize _ ->
                     ( config.closeModal, Sub.none )
 
                 CreateFolder _ ->
@@ -3917,6 +3951,9 @@ contents flags config xbStore p2Store attributeBrowserInitialState shouldPassIni
         RenameFolder m ->
             renameFolderContents xbStore.xbFolders config m
 
+        MinimumSampleSize m ->
+            minimumSampleSizeContents config m
+
         ConfirmDeleteFolder { state, folder, projectsInFolder } ->
             basicModalContents config
                 { state = state
@@ -4909,6 +4946,77 @@ renameFolderContents xbFolders config ({ folder, newName } as data) =
         }
         (saveFooter config "Rename folder")
         data
+
+
+minimumSampleSizeContents :
+    Config msg
+    ->
+        { current : Optional.Optional Int
+        , original : Optional.Optional Int
+        }
+    -> List (Html msg)
+minimumSampleSizeContents config modalContents =
+    let
+        canSave =
+            modalContents.current /= modalContents.original
+
+        formAttrs =
+            [ WeakCss.nest "minimum-sample-size-modal" moduleClass
+            , Attrs_.attributeIf canSave <|
+                Events.onSubmit
+                    (config.setMinimumSampleSize modalContents.current)
+            ]
+
+        submitBtnAttrs =
+            WeakCss.nestMany [ "minimum-sample-size-modal", "primary-button" ] moduleClass
+                :: (if canSave then
+                        [ Attrs.type_ "submit" ]
+
+                    else
+                        [ Attrs.disabled True ]
+                   )
+    in
+    [ Html.form formAttrs
+        [ Html.header [ WeakCss.nestMany [ "minimum-sample-size-modal", "header" ] moduleClass ]
+            [ Html.h2 [ WeakCss.nestMany [ "minimum-sample-size-modal", "headline" ] moduleClass ]
+                [ Html.text "Minimum sample size" ]
+            ]
+        , Html.main_ [ WeakCss.nestMany [ "minimum-sample-size-modal", "main" ] moduleClass ]
+            [ Html.text "Grey out data below the set threshold:"
+            , TextInput.view
+                { onInput =
+                    \str ->
+                        let
+                            optInt =
+                                String.toInt str
+                                    |> Optional.fromMaybe
+                        in
+                        config.msg (SetCurrentMinimumSampleSize optInt)
+                , placeholder = "Eg. 10000"
+                }
+                [ TextInput.class (WeakCss.add "minimum-sample-size-modal" moduleClass)
+                , TextInput.value
+                    (Optional.map String.fromInt modalContents.current
+                        |> Optional.toMaybe
+                        |> Maybe.withDefault "0"
+                    )
+                , TextInput.id "modal-minimum-sample-size-text-input"
+                , TextInput.empty
+                ]
+            ]
+        , Html.footer [ WeakCss.nestMany [ "minimum-sample-size-modal", "footer" ] moduleClass ]
+            [ Html.button
+                [ Events.onClick config.closeModal
+                , Attrs.type_ "button"
+                , WeakCss.nestMany [ "minimum-sample-size-modal", "action-link" ] moduleClass
+                ]
+                [ Html.text "Cancel" ]
+            , Html.button
+                submitBtnAttrs
+                [ Html.text "Confirm" ]
+            ]
+        ]
+    ]
 
 
 remoteDataView : (a -> List (Html msg)) -> WebData a -> List (Html msg)
