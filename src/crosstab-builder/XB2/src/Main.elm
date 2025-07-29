@@ -49,7 +49,7 @@ type AppError
     = NotMounted
     | InitializationError Decode.Error
       -- TODO: `AppLocked` should maybe be considered as regular `Model`
-    | AppLocked { isAppMounted : Bool }
+    | AppLocked { isAppMounted : Bool, userEmail : String }
 
 
 {-| A wrapper around the application state to keep it alive when leaving Crosstabs, we
@@ -264,7 +264,7 @@ init flags_ =
                 initHelp flags
 
             else
-                ( Err (AppLocked { isAppMounted = False })
+                ( Err (AppLocked { isAppMounted = False, userEmail = flags.user.email })
                 , Analytics.track
                     ( "P2 - Crosstabs Management - Opened"
                     , Encode.object
@@ -773,21 +773,12 @@ errorView error =
         InitializationError err ->
             Html.text <| "Initialization error " ++ Decode.errorToString err
 
-        AppLocked { isAppMounted } ->
+        AppLocked { isAppMounted, userEmail } ->
             -- `isAppMounted` gets setted by kernel's ports.
             if isAppMounted then
                 SplashScreen.view
                     { appName = "crosstabs"
-                    , splashTitle = "Dive deeper with crosstabs"
-                    , splashSubtitle =
-                        "Process data, organize it effectively, and extract the most "
-                            ++ "important parts for a richer, more accurate picture of "
-                            ++ "your audience at top speed."
-                    , planUpgrades =
-                        [ "Find new opportunities fast"
-                        , "Answer multiple questions at once"
-                        , "Spot the hottest trends with heatmaps"
-                        ]
+                    , email = userEmail
                     }
 
             else
