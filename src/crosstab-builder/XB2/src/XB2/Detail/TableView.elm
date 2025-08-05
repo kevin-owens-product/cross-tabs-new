@@ -18,7 +18,7 @@ import DnDList as Dnd
 import FormatNumber
 import FormatNumber.Locales as Locales
 import Html exposing (Attribute, Html)
-import Html.Attributes as Attrs
+import Html.Attributes as Attrs exposing (autocomplete)
 import Html.Attributes.Extra as Attrs
 import Html.Events as Events
 import Html.Events.Extra as Events
@@ -281,6 +281,13 @@ type alias Config model msg =
     , getMinimumSampleSize : model -> Optional.Optional Int
     , setMinimumSampleSize : Optional.Optional Int -> msg
 
+    -- Search
+    , searchTermChanged : String -> msg
+    , getCrosstabSearchProps : model -> CrosstabSearchProps
+    , setInputFocus : Bool -> msg
+    , goToPreviousSearchResult : msg
+    , goToNextSearchResult : msg
+
     -- messages
     , noOp : msg
     , selectRowOrColumnMouseDown : ( Float, Float ) -> msg
@@ -308,6 +315,14 @@ type alias Config model msg =
         -> msg
     , tableHeaderResizeStart : Direction -> XB2.Share.DragAndDrop.Move.Position -> msg
     , tableHeaderResizeStop : msg
+    }
+
+
+type alias CrosstabSearchProps =
+    { term : String
+    , sanitizedTerm : String
+    , searchTopLeftScrollJumps : Maybe (Zipper.Zipper { index : Int, direction : Direction })
+    , inputIsFocused : Bool
     }
 
 
@@ -2419,6 +2434,106 @@ sortByNameDropdownView config model { isDropdownOpen, isHeaderCollapsed } =
         ]
 
 
+viewCrosstabSearchBar : Config model msg -> model -> Html msg
+viewCrosstabSearchBar config model =
+    let
+        searchProps =
+            config.getCrosstabSearchProps model
+
+        panelShouldBeInvisible =
+            not searchProps.inputIsFocused
+                && String.isEmpty searchProps.term
+
+        previousIsEnabled =
+            Maybe.unwrap False Zipper.hasPrev searchProps.searchTopLeftScrollJumps
+
+        nextIsEnabled =
+            Maybe.unwrap False Zipper.hasNext searchProps.searchTopLeftScrollJumps
+
+        clearIsEnabled =
+            not <| String.isEmpty searchProps.term
+    in
+    Html.div
+        [ WeakCss.nestMany [ "bases-panel", "search-bar" ]
+            moduleClass
+        ]
+        [ Html.input
+            [ Attrs.type_ "text"
+            , Attrs.attributeIf (not searchProps.inputIsFocused) (Attrs.placeholder "Find…")
+            , Events.onInput config.searchTermChanged
+            , Attrs.value searchProps.term
+            , Attrs.id Common.crosstabSearchId
+            , autocomplete False
+            , Events.onBlur (config.setInputFocus False)
+            , Events.onFocus (config.setInputFocus True)
+            , WeakCss.nestMany [ "bases-panel", "search-bar", "input" ]
+                moduleClass
+            ]
+            []
+        , Html.div
+            [ WeakCss.addMany [ "bases-panel", "search-bar", "panel" ]
+                moduleClass
+                |> WeakCss.withStates
+                    [ ( "invisible", panelShouldBeInvisible )
+                    ]
+            ]
+            [ Html.span
+                [ WeakCss.nestMany [ "bases-panel", "search-bar", "results" ]
+                    moduleClass
+                ]
+                [ let
+                    focusedIndexAndLength =
+                        let
+                            zipperLength =
+                                Maybe.unwrap 0 Zipper.length searchProps.searchTopLeftScrollJumps
+
+                            currentFocusedIndex =
+                                Maybe.map
+                                    (\zipper ->
+                                        List.length (Zipper.listPrev zipper) + 1
+                                    )
+                                    searchProps.searchTopLeftScrollJumps
+                                    |> Maybe.withDefault 0
+                        in
+                        case searchProps.searchTopLeftScrollJumps of
+                            Nothing ->
+                                "0/0"
+
+                            Just _ ->
+                                String.fromInt currentFocusedIndex ++ "/" ++ String.fromInt zipperLength
+                  in
+                  Html.text focusedIndexAndLength
+                ]
+            , Html.span
+                [ WeakCss.nestMany [ "bases-panel", "search-bar", "separator" ]
+                    moduleClass
+                ]
+                []
+            , Html.button
+                [ Events.onClick config.goToPreviousSearchResult
+                , WeakCss.nestMany [ "bases-panel", "search-bar", "previous" ]
+                    moduleClass
+                , Attrs.disabled (not previousIsEnabled)
+                ]
+                [ XB2.Share.Icons.icon [ XB2.Share.Icons.width 16 ] P2Icons.searchCaretUp ]
+            , Html.button
+                [ Events.onClick config.goToNextSearchResult
+                , WeakCss.nestMany [ "bases-panel", "search-bar", "next" ]
+                    moduleClass
+                , Attrs.disabled (not nextIsEnabled)
+                ]
+                [ XB2.Share.Icons.icon [ XB2.Share.Icons.width 16 ] P2Icons.searchCaretDown ]
+            , Html.button
+                [ Events.onClick (config.searchTermChanged "")
+                , WeakCss.nestMany [ "bases-panel", "search-bar", "clear" ]
+                    moduleClass
+                , Attrs.disabled (not clearIsEnabled)
+                ]
+                [ XB2.Share.Icons.icon [ XB2.Share.Icons.width 16 ] P2Icons.searchCross ]
+            ]
+        ]
+
+
 basesPanelView : Config model msg -> Can -> model -> XBStore.Store -> Maybe (Dropdown msg) -> Html msg
 basesPanelView config can model { userSettings } activeDropdown =
     let
@@ -2643,7 +2758,8 @@ basesPanelView config can model { userSettings } activeDropdown =
                                 Html.text "Save as new"
                             }
                 in
-                [ P2CoolTip.viewIf isHeaderCollapsed
+                [ viewCrosstabSearchBar config model
+                , P2CoolTip.viewIf isHeaderCollapsed
                     { targetHtml =
                         Html.button
                             [ Events.onClick config.openMetricsSelection
@@ -2732,7 +2848,8 @@ basesPanelView config can model { userSettings } activeDropdown =
                 ]
 
             else
-                [ Html.button
+                [ viewCrosstabSearchBar config model
+                , Html.button
                     [ Events.onClick config.openMetricsSelection
                     , WeakCss.nestMany [ "bases-panel", "metrics-btn" ] moduleClass
                     , Attrs.disabled <| ACrosstab.isEmpty <| config.getCrosstab model
@@ -3930,6 +4047,7 @@ keyedHeaderView :
         , index : Int
         , key : Key
         , numberOfRowsAndCols : { rows : Int, cols : Int }
+        , searchProps : CrosstabSearchProps
         }
     -> ( String, Html msg )
 keyedHeaderView triggers params =
@@ -4049,11 +4167,31 @@ keyedHeaderView triggers params =
         isAverage =
             AudienceItem.isAverage params.key.item
 
+        isFocusedSearchTerm : Bool
+        isFocusedSearchTerm =
+            case Maybe.map Zipper.current params.searchProps.searchTopLeftScrollJumps of
+                Just { index, direction } ->
+                    index == params.index && direction == params.direction && params.searchProps.inputIsFocused
+
+                Nothing ->
+                    False
+
+        isHighlightedBySearchTerm : Bool
+        isHighlightedBySearchTerm =
+            case Maybe.map Zipper.toList params.searchProps.searchTopLeftScrollJumps of
+                Just searchItems ->
+                    List.member { index = params.index, direction = params.direction } searchItems
+
+                Nothing ->
+                    False
+
         states : List ( String, Bool )
         states =
             selectionStates
                 ++ dndStates
                 ++ [ ( "selected", params.key.isSelected )
+                   , ( "focused-search-term", isFocusedSearchTerm )
+                   , ( "search-highlight", isHighlightedBySearchTerm )
                    , ( "sorted-by", isSortByThisKey )
                    , ( "sort-direction-asc", sortDirection == Just Ascending )
                    , ( "sort-direction-desc", sortDirection == Just Descending )
@@ -5167,6 +5305,7 @@ headersView :
         , dropdownMenu : DropdownMenu msg
         , selectionMap : SelectionMap
         , crosstab : AudienceCrosstab
+        , searchProps : CrosstabSearchProps
         }
     -> Html msg
 headersView triggers params =
@@ -5229,6 +5368,7 @@ headersView triggers params =
                         { rows = ACrosstab.rowCountWithoutTotals params.crosstab
                         , cols = ACrosstab.colCountWithoutTotals params.crosstab
                         }
+                    , searchProps = params.searchProps
                     }
             )
         |> Html.Keyed.ul [ tableModuleClass |> WeakCss.nestMany [ "table", params.className, "partial" ] ]
@@ -5252,6 +5392,7 @@ headersRowsView :
         , dropdownMenu : DropdownMenu msg
         , selectionMap : SelectionMap
         , crosstab : AudienceCrosstab
+        , searchProps : CrosstabSearchProps
         }
     -> Html msg
 headersRowsView triggers params =
@@ -5271,6 +5412,7 @@ headersRowsView triggers params =
         , dropdownMenu = params.dropdownMenu
         , selectionMap = params.selectionMap
         , crosstab = params.crosstab
+        , searchProps = params.searchProps
         }
 
 
@@ -5290,6 +5432,7 @@ headersFrozenTotalRowsView :
         , dropdownMenu : DropdownMenu msg
         , selectionMap : SelectionMap
         , crosstab : AudienceCrosstab
+        , searchProps : CrosstabSearchProps
         }
     -> Html msg
 headersFrozenTotalRowsView triggers params =
@@ -5309,6 +5452,7 @@ headersFrozenTotalRowsView triggers params =
         , dropdownMenu = params.dropdownMenu
         , selectionMap = params.selectionMap
         , crosstab = params.crosstab
+        , searchProps = params.searchProps
         }
 
 
@@ -5328,6 +5472,7 @@ headersFrozenTotalColsView :
         , dropdownMenu : DropdownMenu msg
         , selectionMap : SelectionMap
         , crosstab : AudienceCrosstab
+        , searchProps : CrosstabSearchProps
         }
     -> Html msg
 headersFrozenTotalColsView triggers params =
@@ -5347,6 +5492,7 @@ headersFrozenTotalColsView triggers params =
         , dropdownMenu = params.dropdownMenu
         , selectionMap = params.selectionMap
         , crosstab = params.crosstab
+        , searchProps = params.searchProps
         }
 
 
@@ -5366,6 +5512,7 @@ headersColumnsView :
         , dropdownMenu : DropdownMenu msg
         , selectionMap : SelectionMap
         , crosstab : AudienceCrosstab
+        , searchProps : CrosstabSearchProps
         }
     -> Html msg
 headersColumnsView triggers params =
@@ -5385,6 +5532,7 @@ headersColumnsView triggers params =
         , dropdownMenu = params.dropdownMenu
         , selectionMap = params.selectionMap
         , crosstab = params.crosstab
+        , searchProps = params.searchProps
         }
 
 
@@ -5715,6 +5863,10 @@ tableView triggers params =
         dndModel =
             triggers.config.dndModel params.model
 
+        searchProps : CrosstabSearchProps
+        searchProps =
+            triggers.config.getCrosstabSearchProps params.model
+
         selectionMap : SelectionMap
         selectionMap =
             triggers.config.getSelectionMap params.model
@@ -5920,6 +6072,7 @@ tableView triggers params =
                 , dropdownMenu = dropdownMenu
                 , selectionMap = selectionMap
                 , crosstab = params.crosstab
+                , searchProps = searchProps
                 }
             )
         , headersRowsView
@@ -5937,6 +6090,7 @@ tableView triggers params =
             , dropdownMenu = dropdownMenu
             , selectionMap = selectionMap
             , crosstab = params.crosstab
+            , searchProps = searchProps
             }
         , Html.viewIf
             (nFrozenRows > 0)
@@ -5955,6 +6109,7 @@ tableView triggers params =
                 , dropdownMenu = dropdownMenu
                 , selectionMap = selectionMap
                 , crosstab = params.crosstab
+                , searchProps = searchProps
                 }
             )
         , headersColumnsView
@@ -5972,6 +6127,7 @@ tableView triggers params =
             , dropdownMenu = dropdownMenu
             , selectionMap = selectionMap
             , crosstab = params.crosstab
+            , searchProps = searchProps
             }
         , Html.viewIf
             (nFrozenRows > 0 && nFrozenCols > 0)
@@ -6516,6 +6672,7 @@ gridView triggers params =
             rowsCount =
                 ACrosstab.rowCountWithoutTotals crosstab + 1
         in
+        -- TODO: Check here scrollMessages
         Scrollbar.view
             { scrollId = Common.scrollTableId
             , parentClass = tableModuleClass

@@ -1789,6 +1789,35 @@ $row-label-width: 48px;
                     }
                 }
 
+                &.focused-search-term {
+                    background-color: P2Colors.$pink-dark;
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--metrics {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--caption {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--label {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--drag {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--ellipsis {
+                    color: P2Colors.$white;
+                }
+
+                &:not(.focused-search-term).search-highlight {
+                    background-color: P2Colors.$pink-bg;
+                }
+
                 &.selected &--caption {
                     color: #a40f58;
                 }
@@ -2728,6 +2757,35 @@ $row-label-width: 48px;
                     &.last-header {
                         border-right: $selected-double-border;
                     }
+                }
+
+                &.focused-search-term {
+                    background-color: P2Colors.$pink-dark;
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--metrics {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--caption {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--label {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--drag {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--ellipsis {
+                    color: P2Colors.$white;
+                }
+
+                &:not(.focused-search-term).search-highlight {
+                    background-color: P2Colors.$pink-bg;
                 }
 
                 &.selected &--caption {
@@ -4030,6 +4088,35 @@ $row-label-width: 48px;
                     }
                 }
 
+                &.focused-search-term {
+                    background-color: P2Colors.$pink-dark;
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--metrics {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--caption {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--label {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--drag {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--ellipsis {
+                    color: P2Colors.$white;
+                }
+
+                &:not(.focused-search-term).search-highlight {
+                    background-color: P2Colors.$pink-bg;
+                }
+
                 &.selected &--caption {
                     color: #a40f58;
                 }
@@ -4439,6 +4526,35 @@ $row-label-width: 48px;
                     &.last-header {
                         border-right: $selected-double-border;
                     }
+                }
+
+                &.focused-search-term {
+                    background-color: P2Colors.$pink-dark;
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--metrics {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--caption {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--label {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--drag {
+                    color: P2Colors.$white;
+                }
+
+                &.focused-search-term &--ellipsis {
+                    color: P2Colors.$white;
+                }
+
+                &:not(.focused-search-term).search-highlight {
+                    background-color: P2Colors.$pink-bg;
                 }
 
                 &.selected &--caption {

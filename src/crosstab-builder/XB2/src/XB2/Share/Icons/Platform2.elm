@@ -111,6 +111,9 @@ module XB2.Share.Icons.Platform2 exposing
     , rows
     , saveAsNew
     , search
+    , searchCaretDown
+    , searchCaretUp
+    , searchCross
     , segments
     , share
     , shared
@@ -498,6 +501,26 @@ caretUp =
     }
 
 
+searchCaretDown : IconData
+searchCaretDown =
+    { vMinX = 8
+    , vMinY = 8
+    , vWidth = 16
+    , vHeight = 16
+    , svg = path "M19.952 14.42c-.098-.254-.328-.42-.584-.42h-6.736c-.256 0-.486.166-.584.42-.098.255-.044.55.137.744l3.369 3.636c.123.134.284.2.446.2.162 0 .323-.066.446-.2l3.369-3.636c.18-.195.235-.489.137-.743"
+    }
+
+
+searchCaretUp : IconData
+searchCaretUp =
+    { vMinX = 8
+    , vMinY = 8
+    , vWidth = 16
+    , vHeight = 16
+    , svg = path "M19.952 18.58c-.098.254-.328.42-.584.42h-6.736c-.256 0-.486-.166-.584-.42-.098-.255-.044-.55.137-.744l3.369-3.636c.123-.134.284-.2.446-.2.162 0 .323.066.446.2l3.369 3.636c.18.195.235.489.137.743"
+    }
+
+
 doubleArrowsUp : IconData
 doubleArrowsUp =
     { vMinX = 0
@@ -652,6 +675,16 @@ cross =
     , vMinY = 0
     , vWidth = 32
     , vHeight = 32
+    , svg = path "M20.743 11.257c.314.313.34.806.079 1.15l-.079.089L17.24 16l3.503 3.504a.876.876 0 01-1.15 1.318l-.089-.079L16 17.24l-3.504 3.503a.876.876 0 01-1.318-1.15l.079-.089L14.76 16l-3.503-3.504a.876.876 0 011.15-1.318l.089.079L16 14.76l3.504-3.503a.876.876 0 011.24 0z"
+    }
+
+
+searchCross : IconData
+searchCross =
+    { vMinX = 6
+    , vMinY = 6
+    , vWidth = 20
+    , vHeight = 20
     , svg = path "M20.743 11.257c.314.313.34.806.079 1.15l-.079.089L17.24 16l3.503 3.504a.876.876 0 01-1.15 1.318l-.089-.079L16 17.24l-3.504 3.503a.876.876 0 01-1.318-1.15l.079-.089L14.76 16l-3.503-3.504a.876.876 0 011.15-1.318l.089.079L16 14.76l3.504-3.503a.876.876 0 011.24 0z"
     }
 

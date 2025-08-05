@@ -2,6 +2,7 @@ module XB2.Page.Detail exposing
     ( Config
     , Configure
     , CrosstabData
+    , CrosstabSearchModel
     , EditMsg(..)
     , MeasuredAfterQueueCmd
     , Model
@@ -61,6 +62,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Cmd.Extra as Cmd
 import DateFormat
+import Debouncer.Basic as Debouncer
 import Dict
 import Dict.Any
 import DnDList as Dnd
@@ -82,7 +84,9 @@ import Process
 import Random
 import RemoteData
 import Set.Any
+import Simple.Fuzzy as Fuzzy
 import String.Extra as String
+import String.Normalize as String
 import Task
 import Time exposing (Posix, Zone)
 import WeakCss
@@ -472,6 +476,7 @@ type alias Model =
     , shouldShowExactRespondentNumber : Bool
     , shouldShowExactUniverseNumber : Bool
     , basesPanelDndModel : Dnd.Model
+    , crosstabSearchModel : CrosstabSearchModel
 
     -- Little submodel used for handling the keyboard accessibility in the bases panel
     , keyboardMovementBasesPanelModel :
@@ -701,6 +706,15 @@ init currentTime flags =
     , basesPanelViewport = Nothing
     , basesPanelElement = Nothing
     , tableWarning = Nothing
+    , crosstabSearchModel =
+        { inputDebouncer =
+            Debouncer.toDebouncer
+                (Debouncer.debounce (Debouncer.fromSeconds 0.5))
+        , term = ""
+        , sanitizedTerm = ""
+        , searchTopLeftScrollJumps = Nothing
+        , inputIsFocused = False
+        }
     , tableHeaderDimensions =
         { minWidth = 262
         , minHeight = 150
@@ -1548,6 +1562,11 @@ type Msg
     | OpenShareProjectModal XBProject
     | Edit EditMsg
     | TableScroll { shouldReloadTable : Bool, position : ( Int, Int ) }
+    | DebounceForSearchTermChange (Debouncer.Msg Msg)
+    | ChangeSearchTerm String
+    | FilterRowsAndColsThatMatchSearchTerm
+    | GoToPreviousSearchResult
+    | GoToNextSearchResult
     | AutoScroll Direction
     | ViewGroupExpression ( Direction, ACrosstab.Key )
     | OpenRenameAverageModal Direction ACrosstab.Key
@@ -1636,6 +1655,11 @@ type Msg
     | SetBaseIndexFocused (Maybe Int)
     | SetBaseIndexSelectedToMoveWithKeyboard (Maybe Int)
     | SwapBasesOrder Int Int
+    | FocusElementById String
+    | BlurElementById String
+    | ScrollBasedOnRowIndex Int
+    | ScrollBasedOnColumnIndex Int
+    | SetCrosstabSearchInputFocus Bool
 
 
 getAfterQueueFinishedMsg : MeasuredAfterQueueCmd -> Msg
@@ -5475,6 +5499,68 @@ type ScrollingState
     | JustScrolling ScrollPosition ScrollDirection
 
 
+type alias CrosstabSearchModel =
+    { term : String
+    , sanitizedTerm : String
+    , inputDebouncer : Debouncer.Debouncer Msg Msg
+    , searchTopLeftScrollJumps : Maybe (Zipper { index : Int, direction : Direction })
+    , inputIsFocused : Bool
+    }
+
+
+getCrosstabColumnsThatMatchSearchTermWithIndex : String -> AudienceCrosstab -> List ( Int, Direction )
+getCrosstabColumnsThatMatchSearchTermWithIndex searchTerm crosstab =
+    ACrosstab.getColumns crosstab
+        |> List.indexedFoldl
+            (\index col acc ->
+                let
+                    stringifiedSplitCaption =
+                        Caption.getName (AudienceItem.getCaption col.item)
+                            ++ " "
+                            ++ Maybe.withDefault "" (Caption.getSubtitle (AudienceItem.getCaption col.item))
+
+                    -- We sanitize the search term to lowercase to make the search case-insensitive
+                    sanitizedTitleSubtitle =
+                        sanitizeSearchTerm stringifiedSplitCaption
+                in
+                if Fuzzy.match searchTerm sanitizedTitleSubtitle then
+                    acc ++ [ ( index + 1, Column ) ]
+
+                else
+                    acc
+            )
+            []
+
+
+getCrosstabRowsThatMatchSearchTermWithIndex : String -> AudienceCrosstab -> List ( Int, Direction )
+getCrosstabRowsThatMatchSearchTermWithIndex searchTerm crosstab =
+    ACrosstab.getRows crosstab
+        |> List.indexedFoldl
+            (\index row acc ->
+                let
+                    stringifiedSplitCaption =
+                        Caption.getName (AudienceItem.getCaption row.item)
+                            ++ " "
+                            ++ Maybe.withDefault "" (Caption.getSubtitle (AudienceItem.getCaption row.item))
+
+                    -- We sanitize the search term to lowercase to make the search case-insensitive
+                    sanitizedTitleSubtitle =
+                        sanitizeSearchTerm stringifiedSplitCaption
+                in
+                if Fuzzy.match searchTerm sanitizedTitleSubtitle then
+                    acc ++ [ ( index + 1, Row ) ]
+
+                else
+                    acc
+            )
+            []
+
+
+sanitizeSearchTerm : String -> String
+sanitizeSearchTerm term =
+    String.removeDiacritics (String.toLower term)
+
+
 isScrolling : ScrollingState -> Bool
 isScrolling scrollingState =
     case scrollingState of
@@ -5995,6 +6081,12 @@ update config route flags xbStore p2Store msg model =
                                     |> Cmd.pure
                             )
 
+                FocusElementById id ->
+                    ( model, Task.attempt (\_ -> config.msg NoOp) (Dom.focus id) )
+
+                BlurElementById id ->
+                    ( model, Task.attempt (\_ -> config.msg NoOp) (Dom.blur id) )
+
                 Export maybeSelectionMap maybeProject date ->
                     Cmd.pure model
                         |> updateCellLoader config
@@ -6192,7 +6284,20 @@ update config route flags xbStore p2Store msg model =
                     )
 
                 NavigateTo route_ ->
-                    ( model
+                    let
+                        { crosstabSearchModel } =
+                            model
+                    in
+                    -- Clear search bar
+                    ( { model
+                        | crosstabSearchModel =
+                            { term = ""
+                            , sanitizedTerm = ""
+                            , inputDebouncer = Debouncer.cancel crosstabSearchModel.inputDebouncer
+                            , searchTopLeftScrollJumps = Nothing
+                            , inputIsFocused = False
+                            }
+                      }
                     , Cmd.batch
                         [ Cmd.perform <| config.navigateTo route_
                         , Cmd.perform (config.closeDetailNotification exportNotificationId)
@@ -6398,6 +6503,199 @@ update config route flags xbStore p2Store msg model =
                 RenameCrosstab xbProject ->
                     model
                         |> Cmd.withTrigger (config.openModal <| Modal.initRenameProject xbProject)
+
+                DebounceForSearchTermChange debouncerSubMsg ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+
+                        ( newDebouncer, subCmd, emittedMsg ) =
+                            Debouncer.update debouncerSubMsg crosstabSearchModel.inputDebouncer
+
+                        mappedCmd =
+                            Cmd.map (\debouncerMsg -> config.msg (DebounceForSearchTermChange debouncerMsg)) subCmd
+
+                        updatedModel =
+                            { model
+                                | crosstabSearchModel =
+                                    { crosstabSearchModel
+                                        | inputDebouncer = newDebouncer
+                                    }
+                            }
+                    in
+                    case emittedMsg of
+                        Just emitted ->
+                            ( updatedModel, Cmd.perform (config.msg emitted) )
+                                |> Cmd.add mappedCmd
+
+                        Nothing ->
+                            ( updatedModel, mappedCmd )
+
+                ChangeSearchTerm str ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+
+                        debounceMsg =
+                            if String.length str < 3 then
+                                Cmd.none
+
+                            else
+                                Cmd.perform
+                                    (config.msg <|
+                                        DebounceForSearchTermChange
+                                            (Debouncer.provideInput FilterRowsAndColsThatMatchSearchTerm)
+                                    )
+
+                        debouncerCancelledIfNoRequiredLength =
+                            if String.length str < 3 then
+                                Debouncer.cancel crosstabSearchModel.inputDebouncer
+
+                            else
+                                crosstabSearchModel.inputDebouncer
+
+                        searchResultsBasedOnRequiredLength =
+                            if String.length str < 3 then
+                                Nothing
+
+                            else
+                                crosstabSearchModel.searchTopLeftScrollJumps
+                    in
+                    ( { model
+                        | crosstabSearchModel =
+                            { crosstabSearchModel
+                                | term = str
+                                , sanitizedTerm = sanitizeSearchTerm str
+                                , inputDebouncer = debouncerCancelledIfNoRequiredLength
+                                , searchTopLeftScrollJumps = searchResultsBasedOnRequiredLength
+                            }
+                      }
+                    , debounceMsg
+                    )
+
+                FilterRowsAndColsThatMatchSearchTerm ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+
+                        rowsMatch =
+                            getCrosstabRowsThatMatchSearchTermWithIndex crosstabSearchModel.sanitizedTerm (currentCrosstab model)
+
+                        colsMatch =
+                            getCrosstabColumnsThatMatchSearchTermWithIndex crosstabSearchModel.sanitizedTerm (currentCrosstab model)
+
+                        finalSearchResults =
+                            ListZipper.fromList (List.map (\( index, direction ) -> { index = index, direction = direction }) (colsMatch ++ rowsMatch))
+
+                        scrollMsgBasedOnNewSearchResults =
+                            case Maybe.map ListZipper.current finalSearchResults of
+                                Just { index, direction } ->
+                                    case direction of
+                                        Row ->
+                                            ScrollBasedOnRowIndex index
+
+                                        Column ->
+                                            ScrollBasedOnColumnIndex index
+
+                                Nothing ->
+                                    NoOp
+                    in
+                    ( { model
+                        | crosstabSearchModel =
+                            { crosstabSearchModel
+                                | searchTopLeftScrollJumps = finalSearchResults
+                            }
+                      }
+                    , scrollMsgBasedOnNewSearchResults
+                        |> config.msg
+                        |> Cmd.perform
+                    )
+
+                SetCrosstabSearchInputFocus bool ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+                    in
+                    ( { model
+                        | crosstabSearchModel =
+                            { crosstabSearchModel
+                                | inputIsFocused = bool
+                            }
+                      }
+                    , Cmd.none
+                    )
+
+                GoToPreviousSearchResult ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+
+                        searchResults =
+                            crosstabSearchModel.searchTopLeftScrollJumps
+
+                        newSearchResults =
+                            Maybe.map ListZipper.attemptPrev searchResults
+
+                        scrollMsgBasedOnNewSearchResults =
+                            case Maybe.map ListZipper.current newSearchResults of
+                                Just { index, direction } ->
+                                    case direction of
+                                        Row ->
+                                            ScrollBasedOnRowIndex index
+
+                                        Column ->
+                                            ScrollBasedOnColumnIndex index
+
+                                Nothing ->
+                                    NoOp
+                    in
+                    ( { model
+                        | crosstabSearchModel =
+                            { crosstabSearchModel
+                                | searchTopLeftScrollJumps = newSearchResults
+                            }
+                      }
+                    , scrollMsgBasedOnNewSearchResults
+                        |> config.msg
+                        |> Cmd.perform
+                    )
+                        |> Cmd.add (Cmd.perform <| config.msg <| FocusElementById Common.crosstabSearchId)
+
+                GoToNextSearchResult ->
+                    let
+                        { crosstabSearchModel } =
+                            model
+
+                        searchResults =
+                            crosstabSearchModel.searchTopLeftScrollJumps
+
+                        newSearchResults =
+                            Maybe.map ListZipper.attemptNext searchResults
+
+                        scrollMsgBasedOnNewSearchResults =
+                            case Maybe.map ListZipper.current newSearchResults of
+                                Just { index, direction } ->
+                                    case direction of
+                                        Row ->
+                                            ScrollBasedOnRowIndex index
+
+                                        Column ->
+                                            ScrollBasedOnColumnIndex index
+
+                                Nothing ->
+                                    NoOp
+                    in
+                    ( { model
+                        | crosstabSearchModel =
+                            { crosstabSearchModel
+                                | searchTopLeftScrollJumps = newSearchResults
+                            }
+                      }
+                    , scrollMsgBasedOnNewSearchResults
+                        |> config.msg
+                        |> Cmd.perform
+                    )
+                        |> Cmd.add (Cmd.perform <| config.msg <| FocusElementById Common.crosstabSearchId)
 
                 TableScroll { shouldReloadTable, position } ->
                     let
@@ -7193,6 +7491,24 @@ update config route flags xbStore p2Store msg model =
                     model
                         |> Cmd.withTrigger config.closeModal
                         |> cellsLoadingAction
+
+                ScrollBasedOnRowIndex index ->
+                    let
+                        getTopLeft { cellHeight, visibleCells } =
+                            ( Nothing
+                            , Just <| (index - visibleCells.frozenRows) * cellHeight
+                            )
+                    in
+                    scrollTable config getTopLeft model
+
+                ScrollBasedOnColumnIndex index ->
+                    let
+                        getTopLeft { cellWidth, visibleCells } =
+                            ( Just <| (index - visibleCells.frozenCols) * cellWidth
+                            , Nothing
+                            )
+                    in
+                    scrollTable config getTopLeft model
 
                 ScrollPageUp ->
                     let
@@ -8119,6 +8435,57 @@ subscribeUndoRedoKeyShortcuts =
         )
 
 
+subscribeSearchShortcuts : Bool -> Sub Msg
+subscribeSearchShortcuts inputSearchIsFocused =
+    Browser.Events.onKeyDown
+        (Decode.succeed
+            (\key ctrl meta shift ->
+                if inputSearchIsFocused then
+                    if shift then
+                        case key of
+                            "Enter" ->
+                                GoToPreviousSearchResult
+
+                            _ ->
+                                NoOp
+
+                    else
+                        case key of
+                            "Escape" ->
+                                BlurElementById Common.crosstabSearchId
+
+                            "Enter" ->
+                                GoToNextSearchResult
+
+                            _ ->
+                                NoOp
+
+                else
+                    case ( ctrl, meta, shift ) of
+                        ( True, False, True ) ->
+                            if key == "f" then
+                                FocusElementById Common.crosstabSearchId
+
+                            else
+                                NoOp
+
+                        ( False, True, True ) ->
+                            if key == "f" then
+                                FocusElementById Common.crosstabSearchId
+
+                            else
+                                NoOp
+
+                        _ ->
+                            NoOp
+            )
+            |> Decode.andMap (Decode.field "key" Decode.string)
+            |> Decode.andMap (Decode.field "ctrlKey" Decode.bool)
+            |> Decode.andMap (Decode.field "metaKey" Decode.bool)
+            |> Decode.andMap (Decode.field "shiftKey" Decode.bool)
+        )
+
+
 subscriptions : Config msg -> { isModalOpen : Bool } -> Maybe XBProject -> XB2.Router.Route -> Model -> Sub msg
 subscriptions { msg } { isModalOpen } maybeProject route model =
     let
@@ -8161,6 +8528,11 @@ subscriptions { msg } { isModalOpen } maybeProject route model =
 
                   else
                     subscribeUndoRedoKeyShortcuts
+                , if isModalOpen then
+                    Sub.none
+
+                  else
+                    subscribeSearchShortcuts model.crosstabSearchModel.inputIsFocused
                 , Browser.Events.onResize (\_ _ -> GetBasesPanelWidth)
                 ]
 
@@ -8608,6 +8980,19 @@ tableConfig xbModel maybeProject xbStore =
     -- Sample size
     , getMinimumSampleSize = currentMetadata >> .minimumSampleSize
     , setMinimumSampleSize = Edit << SetMinimumSampleSize
+
+    -- Search
+    , searchTermChanged = ChangeSearchTerm
+    , getCrosstabSearchProps =
+        \model ->
+            { term = model.crosstabSearchModel.term
+            , sanitizedTerm = model.crosstabSearchModel.sanitizedTerm
+            , searchTopLeftScrollJumps = model.crosstabSearchModel.searchTopLeftScrollJumps
+            , inputIsFocused = model.crosstabSearchModel.inputIsFocused
+            }
+    , setInputFocus = SetCrosstabSearchInputFocus
+    , goToPreviousSearchResult = GoToPreviousSearchResult
+    , goToNextSearchResult = GoToNextSearchResult
 
     -- messages
     , noOp = NoOp

@@ -15,6 +15,7 @@
             "Janiczek/elm-bidict": "3.1.0",
             "Janiczek/elm-list-cartesian": "1.0.2",
             "NoRedInk/elm-compare": "2.0.0",
+            "NoRedInk/elm-simple-fuzzy": "1.0.3",
             "TSFoster/elm-uuid": "4.2.0",
             "annaghi/dnd-list": "6.0.1",
             "cuducos/elm-format-number": "9.0.1",
@@ -43,6 +44,7 @@
             "elm-explorations/markdown": "1.0.0",
             "erlandsona/assoc-set": "1.1.0",
             "krisajenkins/remotedata": "6.0.1",
+            "kuon/elm-string-normalize": "1.0.6",
             "mcordova47/elm-natural-ordering": "1.1.0",
             "ohanhi/keyboard": "2.0.1",
             "robinheghan/keyboard-events": "1.0.0",
@@ -66,7 +68,6 @@
             "elm/bytes": "1.0.8",
             "elm/virtual-dom": "1.0.3",
             "justinmimbs/timezone-data": "2.1.4",
-            "kuon/elm-string-normalize": "1.0.6",
             "myrho/elm-round": "1.0.5",
             "pzp1997/assoc-list": "1.0.0",
             "skyqrose/assoc-list-extra": "1.0.0"

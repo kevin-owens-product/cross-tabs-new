@@ -6,6 +6,7 @@ module XB2.Detail.Common exposing
     , basesPanelId
     , basesPanelScrollableId
     , cornerCellId
+    , crosstabSearchId
     , datasetCodesFromNamespaceCodes
     , defaultLocations
     , directionToString
@@ -108,6 +109,11 @@ directionToString direction =
 
         Column ->
             "column"
+
+
+crosstabSearchId : String
+crosstabSearchId =
+    "xb2-crosstab-search-id"
 
 
 moduleClass : ClassName
