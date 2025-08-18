@@ -32,6 +32,7 @@ import XB2.Ports as Ports
 import XB2.Router as Router
 import XB2.Share.Analytics as Analytics
 import XB2.Share.Config
+import XB2.Share.Data.User as User
 import XB2.Share.DefaultQueryParams
 import XB2.Share.ErrorHandling
 import XB2.Share.Gwi.Http as GwiHttp
@@ -49,7 +50,7 @@ type AppError
     = NotMounted
     | InitializationError Decode.Error
       -- TODO: `AppLocked` should maybe be considered as regular `Model`
-    | AppLocked { isAppMounted : Bool, userEmail : String }
+    | AppLocked { isAppMounted : Bool, userEmail : String, userPlan : User.Plan }
 
 
 {-| A wrapper around the application state to keep it alive when leaving Crosstabs, we
@@ -264,7 +265,13 @@ init flags_ =
                 initHelp flags
 
             else
-                ( Err (AppLocked { isAppMounted = False, userEmail = flags.user.email })
+                ( Err
+                    (AppLocked
+                        { isAppMounted = False
+                        , userEmail = flags.user.email
+                        , userPlan = flags.user.planHandle
+                        }
+                    )
                 , Analytics.track
                     ( "P2 - Crosstabs Management - Opened"
                     , Encode.object
@@ -801,7 +808,7 @@ errorView error =
         InitializationError err ->
             Html.text <| "Initialization error " ++ Decode.errorToString err
 
-        AppLocked { isAppMounted, userEmail } ->
+        AppLocked { isAppMounted, userEmail, userPlan } ->
             -- `isAppMounted` gets setted by kernel's ports.
             if isAppMounted then
                 SplashScreen.view
@@ -810,6 +817,7 @@ errorView error =
                     }
                     { appName = "crosstabs"
                     , email = userEmail
+                    , upgradePlanUrl = SplashScreen.getUpgradePlanUrlBasedOnUserPlan userPlan
                     }
 
             else
