@@ -63,8 +63,8 @@ jobs:
         TARGET_ENV=${{ inputs.target_env }} GITHUB_REF=${{ github.ref_name }} GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
 
     - name: deploy-p2-revision-activate-p2
-      # Run only on main branch, on staging/testing
-      if: ${{ github.ref == 'refs/heads/main' && ( inputs.target_env == 'testing' || inputs.target_env == 'staging' || inputs.target_env == 'alpha' ) }}
+      # Run only on main branch, on alpha/testing
+      if: ${{ github.ref == 'refs/heads/main' && ( inputs.target_env == 'testing' || inputs.target_env == 'alpha' ) }}
       run: |
         cd /pro/deploy; TARGET_ENV=${{ inputs.target_env }} make release-and-activate-p2
    
@@ -76,6 +76,13 @@ jobs:
       run: |
         cd /pro/deploy
         TARGET_ENV=${{ inputs.target_env }} GITHUB_REF="elm-release" GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
+
+    - name: deploy-revision-release-staging
+      # Also deploy to staging when deploying to production
+      if: ${{ github.ref == 'refs/heads/production' && inputs.target_env == 'production' }}
+      run: |
+        cd /pro/deploy
+        TARGET_ENV=staging GITHUB_REF="elm-release" GITHUB_SHA=${{ github.sha }} make release-and-activate-p2-feature-branches
 
     - name: Generate timestamp
       id: generateTimestamp
