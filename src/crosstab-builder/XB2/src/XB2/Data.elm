@@ -1082,7 +1082,7 @@ createXBProject project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs" ]
+                [ "v2", "saved", "crosstabs" ]
                 []
         , body = Http.jsonBody <| xbProjectEncode project
         , expect = XB2.Share.Gwi.Http.expectErrorAwareJson xbProjectErrorDecoder (xbProjectDecoder flags)
@@ -1100,7 +1100,7 @@ fetchXBProjectList flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs" ]
+                [ "v2", "saved", "crosstabs" ]
                 []
         , body = Http.emptyBody
         , expect =
@@ -1120,7 +1120,7 @@ fetchXBProject projectId flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap projectId ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap projectId ]
                 []
         , body = Http.emptyBody
         , expect = XB2.Share.Gwi.Http.expectErrorAwareJson xbProjectErrorDecoder (xbProjectDecoder flags)
@@ -1136,7 +1136,7 @@ fetchTaskXBProjectFullyLoaded p flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap p.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap p.id ]
                 []
         , body = Http.emptyBody
         , resolver = XB2.Share.Gwi.Http.resolveErrorAwareJson xbProjectErrorDecoder (xbProjectFullyLoadedDecoder flags)
@@ -1189,7 +1189,7 @@ patchXBProject project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body =
             Http.jsonBody <|
@@ -1214,7 +1214,7 @@ shareXBProjectWithLink project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", "share", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", "share", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body =
             Http.jsonBody <|
@@ -1238,7 +1238,7 @@ patchXBProjectTask project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body =
             Http.jsonBody <|
@@ -1262,7 +1262,7 @@ destroyXBProjectTask project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body = Http.emptyBody
         , resolver = XB2.Share.Gwi.Http.resolveErrorAwareJson xbProjectErrorDecoder (Decode.succeed project)
@@ -1279,7 +1279,7 @@ updateXBProject project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body = Http.jsonBody <| xbProjectEncode project
         , expect = XB2.Share.Gwi.Http.expectErrorAwareJson xbProjectErrorDecoder (xbProjectDecoder flags)
@@ -1297,7 +1297,7 @@ destroyXBProject project flags =
         , headers = [ Auth.header flags.token ]
         , url =
             Url.Builder.crossOrigin (host flags)
-                [ "platform", "v1", "crosstabs", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
+                [ "v2", "saved", "crosstabs", XB2.Share.Data.Id.unwrap project.id ]
                 []
         , body = Http.emptyBody
         , expect = XB2.Share.Gwi.Http.expectErrorAwareJson xbProjectErrorDecoder (Decode.succeed ())
