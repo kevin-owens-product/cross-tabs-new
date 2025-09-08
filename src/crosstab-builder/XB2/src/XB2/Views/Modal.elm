@@ -165,7 +165,7 @@ import XB2.Share.Data.Labels
         ( LocationCodeTag
         , WaveCodeTag
         )
-import XB2.Share.Data.Platform2 exposing (FullUserEmail)
+import XB2.Share.Data.Platform2 exposing (Attribute, FullUserEmail)
 import XB2.Share.Dialog.ErrorDisplay exposing (ErrorDisplay)
 import XB2.Share.Gwi.Html.Attributes as Attrs
 import XB2.Share.Gwi.Http
@@ -317,6 +317,7 @@ type AttributesModalType
     | EditBaseAudience
     | AffixBaseAudience
     | ReplaceDefaultBaseAudience
+    | MetadataNotes Attribute
 
 
 type alias AttributesModalData =
@@ -394,6 +395,9 @@ isAttributeBrowserAffixing modal =
                     False
 
                 EditRowColumn ->
+                    False
+
+                MetadataNotes _ ->
                     False
 
         _ ->
@@ -750,6 +754,7 @@ type Msg
     | SetCurrentMinimumSampleSize MinimumSampleSize
     | ResetMinimumSampleSizeModal
     | SetInputTextFocusedInMinimumSampleSizeModal (Maybe MinimumSampleSizeInputTextType)
+    | OpenAttributeMetadata Attribute
 
 
 
@@ -1238,6 +1243,11 @@ initAttributesAddModal =
 initAttributesEditModal : NonEmpty ( Direction, ACrosstab.Key ) -> SelectedItems -> IdSet WaveCodeTag -> IdSet LocationCodeTag -> Int -> Modal
 initAttributesEditModal editingItems initalSelectedItems =
     initAttributesModal EditRowColumn (EditingRowsOrColumns editingItems) initalSelectedItems
+
+
+initAttributesMetadataModal : Attribute -> IdSet WaveCodeTag -> IdSet LocationCodeTag -> Int -> Modal
+initAttributesMetadataModal prerequestedAttribute =
+    initAttributesModal (MetadataNotes prerequestedAttribute) NotAffixingOrEditing []
 
 
 initAttributesAffixModal : Analytics.AffixedFrom -> NonEmpty ( Direction, ACrosstab.Key ) -> IdSet WaveCodeTag -> IdSet LocationCodeTag -> Int -> Modal
@@ -1755,6 +1765,9 @@ update config route flags xbStore msg modal =
 
                 _ ->
                     ( modal, Cmd.none )
+
+        OpenAttributeMetadata attribute ->
+            ( initAttributesMetadataModal attribute XB2.Share.Data.Id.emptySet XB2.Share.Data.Id.emptySet 0, Cmd.none )
 
         ResetReorderBasesModal ->
             case modal of
@@ -2799,6 +2812,9 @@ attributesModalContents flags config p2Store attributeBrowserInitialState should
                 EditRowColumn ->
                     ModalBrowser.editTableView
 
+                MetadataNotes attribute ->
+                    ModalBrowser.metadataNotesView attribute
+
         canUseAverage =
             data.modalType == AddRowColumnToTable
     in
@@ -3402,7 +3418,7 @@ shareProjectContents config flags ({ project, originalSharedWithEmails, original
 
 
 addAsNewBasesContent : Flags -> Config msg -> AddAsNewBasesData -> List (Html msg)
-addAsNewBasesContent flags { closeModal, msg, saveAsBase } data =
+addAsNewBasesContent flags { noOp, closeModal, msg, saveAsBase } data =
     let
         selectedGrouping =
             List.filter ((==) True << .active) data.logicButtons
@@ -3494,7 +3510,34 @@ addAsNewBasesContent flags { closeModal, msg, saveAsBase } data =
                                             [ WeakCss.addMany [ "expression-viewer", "wrapper" ] moduleClass
                                                 |> WeakCss.withStates [ ( "is-expanded", expanded ) ]
                                             ]
-                                            [ Html.viewIfLazy (expanded || alreadySeen) (\() -> ExpressionViewer.view flags moduleClass expression) ]
+                                            [ Html.viewIfLazy (expanded || alreadySeen)
+                                                (\() ->
+                                                    ExpressionViewer.view flags
+                                                        { attributeMetadataOpened =
+                                                            \exprAttr ->
+                                                                msg <|
+                                                                    OpenAttributeMetadata
+                                                                        { namespaceCode = exprAttr.namespaceCode
+                                                                        , codes =
+                                                                            { datapointCode = exprAttr.datapointCode
+                                                                            , questionCode = exprAttr.questionCode
+                                                                            , suffixCode = exprAttr.suffixCode
+                                                                            }
+                                                                        , questionName = exprAttr.questionLabel
+                                                                        , datapointName = exprAttr.datapointLabel
+                                                                        , suffixName = exprAttr.suffixLabel
+                                                                        , questionDescription = exprAttr.questionDescription
+                                                                        , order = exprAttr.order
+                                                                        , compatibilitiesMetadata = Nothing
+                                                                        , taxonomyPaths = Nothing
+                                                                        , isExcluded = False
+                                                                        }
+                                                        , noOp = noOp
+                                                        }
+                                                        moduleClass
+                                                        expression
+                                                )
+                                            ]
                                         ]
                                     ]
 
@@ -3520,7 +3563,7 @@ addAsNewBasesContent flags { closeModal, msg, saveAsBase } data =
 
 
 mergeRoworColumContent : Flags -> Config msg -> MergeRowOrColumnData -> List (Html msg)
-mergeRoworColumContent flags { closeModal, msg, mergeRowOrColumn } data =
+mergeRoworColumContent flags { noOp, closeModal, msg, mergeRowOrColumn } data =
     let
         selectedGrouping =
             List.filter ((==) True << .active) data.logicButtons
@@ -3611,7 +3654,34 @@ mergeRoworColumContent flags { closeModal, msg, mergeRowOrColumn } data =
                                             [ WeakCss.addMany [ "expression-viewer", "wrapper" ] moduleClass
                                                 |> WeakCss.withStates [ ( "is-expanded", expanded ) ]
                                             ]
-                                            [ Html.viewIfLazy (expanded || alreadySeen) (\() -> ExpressionViewer.view flags moduleClass expression) ]
+                                            [ Html.viewIfLazy (expanded || alreadySeen)
+                                                (\() ->
+                                                    ExpressionViewer.view flags
+                                                        { attributeMetadataOpened =
+                                                            \exprAttr ->
+                                                                msg <|
+                                                                    OpenAttributeMetadata
+                                                                        { namespaceCode = exprAttr.namespaceCode
+                                                                        , codes =
+                                                                            { datapointCode = exprAttr.datapointCode
+                                                                            , questionCode = exprAttr.questionCode
+                                                                            , suffixCode = exprAttr.suffixCode
+                                                                            }
+                                                                        , questionName = exprAttr.questionLabel
+                                                                        , datapointName = exprAttr.datapointLabel
+                                                                        , suffixName = exprAttr.suffixLabel
+                                                                        , questionDescription = exprAttr.questionDescription
+                                                                        , order = exprAttr.order
+                                                                        , compatibilitiesMetadata = Nothing
+                                                                        , taxonomyPaths = Nothing
+                                                                        , isExcluded = False
+                                                                        }
+                                                        , noOp = noOp
+                                                        }
+                                                        moduleClass
+                                                        expression
+                                                )
+                                            ]
                                         ]
                                     ]
 
@@ -3663,7 +3733,7 @@ removeBulkConfirmContents :
         , doNotShowAgainChecked : Bool
         }
     -> List (Html msg)
-removeBulkConfirmContents flags { msg, closeModal } { dialogCopy, updateMsg, onSubmit, title, items, innerModuleClass, doNotShowAgainChecked } =
+removeBulkConfirmContents flags { noOp, msg, closeModal } { dialogCopy, updateMsg, onSubmit, title, items, innerModuleClass, doNotShowAgainChecked } =
     let
         itemWithExpressionView index ( { expanded, alreadySeen }, item ) =
             Html.li
@@ -3711,7 +3781,34 @@ removeBulkConfirmContents flags { msg, closeModal } { dialogCopy, updateMsg, onS
                     [ WeakCss.addMany [ "expression-viewer", "wrapper" ] innerModuleClass
                         |> WeakCss.withStates [ ( "is-expanded", expanded ) ]
                     ]
-                    [ Html.viewIfLazy (expanded || alreadySeen) (\() -> ExpressionViewer.view flags innerModuleClass item.expression) ]
+                    [ Html.viewIfLazy (expanded || alreadySeen)
+                        (\() ->
+                            ExpressionViewer.view flags
+                                { attributeMetadataOpened =
+                                    \exprAttr ->
+                                        msg <|
+                                            OpenAttributeMetadata
+                                                { namespaceCode = exprAttr.namespaceCode
+                                                , codes =
+                                                    { datapointCode = exprAttr.datapointCode
+                                                    , questionCode = exprAttr.questionCode
+                                                    , suffixCode = exprAttr.suffixCode
+                                                    }
+                                                , questionName = exprAttr.questionLabel
+                                                , datapointName = exprAttr.datapointLabel
+                                                , suffixName = exprAttr.suffixLabel
+                                                , questionDescription = exprAttr.questionDescription
+                                                , order = exprAttr.order
+                                                , compatibilitiesMetadata = Nothing
+                                                , taxonomyPaths = Nothing
+                                                , isExcluded = False
+                                                }
+                                , noOp = noOp
+                                }
+                                innerModuleClass
+                                item.expression
+                        )
+                    ]
                 ]
     in
     [ Html.form
@@ -5294,7 +5391,31 @@ affixGroupContentsMany_ flags data =
                     [ WeakCss.addMany [ "expression-viewer", "wrapper" ] moduleClass
                         |> WeakCss.withStates [ ( "is-expanded", isExpanded ) ]
                     ]
-                    [ ExpressionViewer.view flags moduleClass expression ]
+                    [ ExpressionViewer.view flags
+                        { attributeMetadataOpened =
+                            \exprAttr ->
+                                data.msg <|
+                                    OpenAttributeMetadata
+                                        { namespaceCode = exprAttr.namespaceCode
+                                        , codes =
+                                            { datapointCode = exprAttr.datapointCode
+                                            , questionCode = exprAttr.questionCode
+                                            , suffixCode = exprAttr.suffixCode
+                                            }
+                                        , questionName = exprAttr.questionLabel
+                                        , datapointName = exprAttr.datapointLabel
+                                        , suffixName = exprAttr.suffixLabel
+                                        , questionDescription = exprAttr.questionDescription
+                                        , order = exprAttr.order
+                                        , compatibilitiesMetadata = Nothing
+                                        , taxonomyPaths = Nothing
+                                        , isExcluded = False
+                                        }
+                        , noOp = data.msg NoOp
+                        }
+                        moduleClass
+                        expression
+                    ]
                 ]
 
         viewGroups : Html msg
@@ -5313,7 +5434,31 @@ affixGroupContentsMany_ flags data =
                     [ WeakCss.nestMany [ "view-affix-modal-many", "footer", "expression", "scroll" ] moduleClass ]
                     [ Html.div
                         [ WeakCss.nestMany [ "view-affix-modal-many", "footer", "expression", "scroll", "inner" ] moduleClass ]
-                        [ ExpressionViewer.view flags moduleClass data.expressionBeingAffixed ]
+                        [ ExpressionViewer.view flags
+                            { attributeMetadataOpened =
+                                \exprAttr ->
+                                    data.msg <|
+                                        OpenAttributeMetadata
+                                            { namespaceCode = exprAttr.namespaceCode
+                                            , codes =
+                                                { datapointCode = exprAttr.datapointCode
+                                                , questionCode = exprAttr.questionCode
+                                                , suffixCode = exprAttr.suffixCode
+                                                }
+                                            , questionName = exprAttr.questionLabel
+                                            , datapointName = exprAttr.datapointLabel
+                                            , suffixName = exprAttr.suffixLabel
+                                            , questionDescription = exprAttr.questionDescription
+                                            , order = exprAttr.order
+                                            , compatibilitiesMetadata = Nothing
+                                            , taxonomyPaths = Nothing
+                                            , isExcluded = False
+                                            }
+                            , noOp = data.msg NoOp
+                            }
+                            moduleClass
+                            data.expressionBeingAffixed
+                        ]
                     ]
                 ]
     in
@@ -5437,7 +5582,33 @@ affixGroupContentsOne_ flags data =
                         [ Html.text "Current expression" ]
                     , Html.div
                         [ WeakCss.nestMany [ "expression", "content" ] contentClass ]
-                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ] [ ExpressionViewer.view flags contentClass data.currentExpression ] ]
+                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ]
+                            [ ExpressionViewer.view flags
+                                { attributeMetadataOpened =
+                                    \exprAttr ->
+                                        data.msg <|
+                                            OpenAttributeMetadata
+                                                { namespaceCode = exprAttr.namespaceCode
+                                                , codes =
+                                                    { datapointCode = exprAttr.datapointCode
+                                                    , questionCode = exprAttr.questionCode
+                                                    , suffixCode = exprAttr.suffixCode
+                                                    }
+                                                , questionName = exprAttr.questionLabel
+                                                , datapointName = exprAttr.datapointLabel
+                                                , suffixName = exprAttr.suffixLabel
+                                                , questionDescription = exprAttr.questionDescription
+                                                , order = exprAttr.order
+                                                , compatibilitiesMetadata = Nothing
+                                                , taxonomyPaths = Nothing
+                                                , isExcluded = False
+                                                }
+                                , noOp = data.msg NoOp
+                                }
+                                contentClass
+                                data.currentExpression
+                            ]
+                        ]
                     ]
                 , Html.div
                     [ WeakCss.nest "expression" contentClass
@@ -5446,7 +5617,33 @@ affixGroupContentsOne_ flags data =
                         [ Html.text "New expression" ]
                     , Html.div
                         [ WeakCss.nestMany [ "expression", "content" ] contentClass ]
-                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ] [ ExpressionViewer.view flags contentClass data.newExpression ] ]
+                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ]
+                            [ ExpressionViewer.view flags
+                                { attributeMetadataOpened =
+                                    \exprAttr ->
+                                        data.msg <|
+                                            OpenAttributeMetadata
+                                                { namespaceCode = exprAttr.namespaceCode
+                                                , codes =
+                                                    { datapointCode = exprAttr.datapointCode
+                                                    , questionCode = exprAttr.questionCode
+                                                    , suffixCode = exprAttr.suffixCode
+                                                    }
+                                                , questionName = exprAttr.questionLabel
+                                                , datapointName = exprAttr.datapointLabel
+                                                , suffixName = exprAttr.suffixLabel
+                                                , questionDescription = exprAttr.questionDescription
+                                                , order = exprAttr.order
+                                                , compatibilitiesMetadata = Nothing
+                                                , taxonomyPaths = Nothing
+                                                , isExcluded = False
+                                                }
+                                , noOp = data.msg NoOp
+                                }
+                                contentClass
+                                data.newExpression
+                            ]
+                        ]
                     ]
                 ]
     in
@@ -5568,7 +5765,33 @@ editGroupContentsOne_ flags data =
                         [ Html.text "Current expression" ]
                     , Html.div
                         [ WeakCss.nestMany [ "expression", "content" ] contentClass ]
-                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ] [ ExpressionViewer.view flags contentClass data.currentExpression ] ]
+                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ]
+                            [ ExpressionViewer.view flags
+                                { attributeMetadataOpened =
+                                    \exprAttr ->
+                                        data.msg <|
+                                            OpenAttributeMetadata
+                                                { namespaceCode = exprAttr.namespaceCode
+                                                , codes =
+                                                    { datapointCode = exprAttr.datapointCode
+                                                    , questionCode = exprAttr.questionCode
+                                                    , suffixCode = exprAttr.suffixCode
+                                                    }
+                                                , questionName = exprAttr.questionLabel
+                                                , datapointName = exprAttr.datapointLabel
+                                                , suffixName = exprAttr.suffixLabel
+                                                , questionDescription = exprAttr.questionDescription
+                                                , order = exprAttr.order
+                                                , compatibilitiesMetadata = Nothing
+                                                , taxonomyPaths = Nothing
+                                                , isExcluded = False
+                                                }
+                                , noOp = data.msg NoOp
+                                }
+                                contentClass
+                                data.currentExpression
+                            ]
+                        ]
                     ]
                 , Html.div
                     [ WeakCss.nest "expression" contentClass
@@ -5577,7 +5800,33 @@ editGroupContentsOne_ flags data =
                         [ Html.text "New expression" ]
                     , Html.div
                         [ WeakCss.nestMany [ "expression", "content" ] contentClass ]
-                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ] [ ExpressionViewer.view flags contentClass data.newExpression ] ]
+                        [ Html.div [ WeakCss.nestMany [ "expression", "content", "scroll" ] contentClass ]
+                            [ ExpressionViewer.view flags
+                                { attributeMetadataOpened =
+                                    \exprAttr ->
+                                        data.msg <|
+                                            OpenAttributeMetadata
+                                                { namespaceCode = exprAttr.namespaceCode
+                                                , codes =
+                                                    { datapointCode = exprAttr.datapointCode
+                                                    , questionCode = exprAttr.questionCode
+                                                    , suffixCode = exprAttr.suffixCode
+                                                    }
+                                                , questionName = exprAttr.questionLabel
+                                                , datapointName = exprAttr.datapointLabel
+                                                , suffixName = exprAttr.suffixLabel
+                                                , questionDescription = exprAttr.questionDescription
+                                                , order = exprAttr.order
+                                                , compatibilitiesMetadata = Nothing
+                                                , taxonomyPaths = Nothing
+                                                , isExcluded = False
+                                                }
+                                , noOp = data.msg NoOp
+                                }
+                                contentClass
+                                data.newExpression
+                            ]
+                        ]
                     ]
                 ]
     in
@@ -5848,9 +6097,10 @@ viewGroupContents_ :
         , headerTabs : List (HeaderTab msg)
         , btnTitle : String
         , state : State
+        , msg : Msg -> msg
         }
     -> List (Html msg)
-viewGroupContents_ flags { hasChanges, onSubmit, onInput, closeModal, name, expression, headerTabs, btnTitle, state } =
+viewGroupContents_ flags { hasChanges, onSubmit, onInput, closeModal, name, expression, headerTabs, btnTitle, state, msg } =
     let
         canBeSaved =
             (state == Ready)
@@ -5896,7 +6146,31 @@ viewGroupContents_ flags { hasChanges, onSubmit, onInput, closeModal, name, expr
                 ]
             , Html.div
                 [ WeakCss.nestMany [ "view-group-modal", "expression-content" ] moduleClass ]
-                [ ExpressionViewer.view flags moduleClass expression ]
+                [ ExpressionViewer.view flags
+                    { attributeMetadataOpened =
+                        \exprAttr ->
+                            msg <|
+                                OpenAttributeMetadata
+                                    { namespaceCode = exprAttr.namespaceCode
+                                    , codes =
+                                        { datapointCode = exprAttr.datapointCode
+                                        , questionCode = exprAttr.questionCode
+                                        , suffixCode = exprAttr.suffixCode
+                                        }
+                                    , questionName = exprAttr.questionLabel
+                                    , datapointName = exprAttr.datapointLabel
+                                    , suffixName = exprAttr.suffixLabel
+                                    , questionDescription = exprAttr.questionDescription
+                                    , order = exprAttr.order
+                                    , compatibilitiesMetadata = Nothing
+                                    , taxonomyPaths = Nothing
+                                    , isExcluded = False
+                                    }
+                    , noOp = msg NoOp
+                    }
+                    moduleClass
+                    expression
+                ]
             ]
         , Html.footer [ WeakCss.nestMany [ "view-group-modal", "footer" ] moduleClass ]
             [ Html.button
@@ -5932,6 +6206,7 @@ groupContentsView flags config { hasChanges, caption, oldKey, expression, direct
         , headerTabs = [ { title = "View/rename", active = True, icon = P2Icons.fileSearch, onClick = Nothing } ]
         , btnTitle = "Apply"
         , state = Ready
+        , msg = config.msg
         }
 
 
@@ -5970,6 +6245,7 @@ baseRenameContentsView flags config { hasChanges, baseAudience } =
         , headerTabs = [ { title = "Rename Base", active = True, icon = P2Icons.datapoint, onClick = Nothing } ]
         , btnTitle = "Save Base"
         , state = Ready
+        , msg = config.msg
         }
 
 
@@ -5985,6 +6261,7 @@ saveAsAudienceContents flags config { item, caption, expression, state } =
         , headerTabs = [ { title = "Save as a new audience", active = True, icon = P2Icons.audiences, onClick = Nothing } ]
         , btnTitle = "Save"
         , state = state
+        , msg = config.msg
         }
 
 

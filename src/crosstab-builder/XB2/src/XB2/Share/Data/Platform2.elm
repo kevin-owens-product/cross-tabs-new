@@ -40,6 +40,7 @@ module XB2.Share.Data.Platform2 exposing
     , deepestNamespaceCode
     , encodeAttribute
     , encodeDatasetForWebcomponent
+    , encodeUnwrappedAttribute
     , fetchFullUserEmails
     , getAudienceFolders
     , getDatasetFolders
@@ -292,6 +293,37 @@ encodeAttribute { isStaged, isCalculated } attr =
           )
         , ( "isStaged", Encode.bool isStaged )
         , ( "isCalculated", Encode.bool isCalculated )
+        ]
+
+
+encodeUnwrappedAttribute : Attribute -> Encode.Value
+encodeUnwrappedAttribute attr =
+    Encode.object
+        [ ( "question_label", Encode.string attr.questionName )
+        , ( "datapoint_label", Encode.string attr.datapointName )
+        , ( "suffix_label"
+          , Maybe.unwrap (Encode.string "") Encode.string attr.suffixName
+          )
+        , ( "namespace_code", Namespace.encodeCode attr.namespaceCode )
+        , ( "question_code", Id.encode attr.codes.questionCode )
+        , ( "datapoint_code", Id.encode attr.codes.datapointCode )
+        , ( "suffix_code"
+          , Maybe.unwrap (Encode.string "") Id.encode attr.codes.suffixCode
+          )
+        , ( "question_description"
+          , Maybe.unwrap Encode.null Encode.string attr.questionDescription
+          )
+        , ( "order", Encode.float attr.order )
+        , ( "compatibilities_metadata"
+          , Maybe.unwrap Encode.null
+                encodeCompatibilitiesMetadata
+                attr.compatibilitiesMetadata
+          )
+        , ( "taxonomy_paths"
+          , Maybe.unwrap Encode.null
+                (Encode.list encodeAttributeTaxonomyPath)
+                attr.taxonomyPaths
+          )
         ]
 
 

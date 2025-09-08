@@ -25,6 +25,7 @@ module XB2.Modal.Browser exposing
     , groupFoldr
     , init
     , isSelectedAverage
+    , metadataNotesView
     , replaceDefaultBaseView
     , selectedItemNamespaceCodes
     , setModalBrowserWarning
@@ -2463,6 +2464,121 @@ getAddToTableGroupingPanelConfig config ({ clearAllMsg, clearItemMsg, groupingSe
     toComplexExpressionPanelConfig config [ Split, And, Or ] params cnf
 
 
+getMetadataNotesViewConfig :
+    Config msg
+    -> StateForGroupingPanel msg
+    -> ( XB2GroupingPanel.Config SelectedItem msg, GroupingPanel.Config SelectedItem msg )
+getMetadataNotesViewConfig config ({ clearAllMsg, clearItemMsg, groupingSelectedMsg, activeGrouping, items, warning, attributesLoading, model } as params) =
+    let
+        itemsCount =
+            List.length items
+
+        addingItemsCount =
+            if activeGrouping == Split then
+                itemsCount
+
+            else
+                1
+
+        addBtnPrefix =
+            "Add " ++ String.fromInt addingItemsCount ++ " "
+
+        insertToTableMsg direction =
+            items
+                |> config.addItemsToTable direction activeGrouping
+
+        containsAverage : Bool
+        containsAverage =
+            List.any isSelectedAverage items
+
+        containsMoreThanSingleGroup : Bool
+        containsMoreThanSingleGroup =
+            List.any isSelectedGroup items && (List.length items > 1)
+
+        containsSingleGroup : Bool
+        containsSingleGroup =
+            List.any isSelectedGroup items && (List.length items == 1)
+
+        isGroupingMode : Bool
+        isGroupingMode =
+            (UndoRedo.current model |> .groupingItemWith) /= Nothing
+
+        activeGrouping_ : Grouping
+        activeGrouping_ =
+            if containsSingleGroup then
+                List.head items
+                    |> Maybe.andThen getGroupingFromItem
+                    |> Maybe.withDefault activeGrouping
+
+            else
+                activeGrouping
+
+        cnf =
+            { title = "Add to your crosstab"
+            , placeholder =
+                \num ->
+                    if num == 0 then
+                        Just
+                            [ ( GroupingPanel.Plain, "Add one or more " )
+                            , ( GroupingPanel.Bold, "attributes from the same" )
+                            , ( GroupingPanel.Plain, " question" )
+                            ]
+
+                    else if num > 0 && num < 4 then
+                        Just
+                            [ ( GroupingPanel.Plain, "Continue adding " )
+                            , ( GroupingPanel.Bold, "attributes" )
+                            ]
+
+                    else
+                        Nothing
+            , placeholderIcon = P2Icons.groupingPanelPlaceholderXB
+            , activeGrouping = activeGrouping_
+            , isClearable = True
+            , isLoading = attributesLoading
+            , warning = warningView warning
+            , groupings =
+                [ ( Split, 1 ), ( And, 2 ), ( Or, 2 ) ]
+                    |> List.map
+                        (\( grouping, minimumItemCountToBeEnabled ) ->
+                            { grouping = grouping
+                            , disabled =
+                                if containsMoreThanSingleGroup || isGroupingMode then
+                                    True
+
+                                else if containsAverage then
+                                    grouping /= Split
+
+                                else if containsSingleGroup then
+                                    False
+
+                                else
+                                    itemsCount < minimumItemCountToBeEnabled
+                            , onClick = groupingSelectedMsg grouping
+                            }
+                        )
+            , items = itemsForGroupingPanel items
+            , buttons =
+                [ { label = addBtnPrefix ++ XB2.Share.Plural.fromInt addingItemsCount "row"
+                  , onClick = insertToTableMsg Row
+                  , disabled = addingItemsCount == 0
+                  }
+                , { label = addBtnPrefix ++ XB2.Share.Plural.fromInt addingItemsCount "column"
+                  , onClick = insertToTableMsg Column
+                  , disabled = addingItemsCount == 0
+                  }
+                ]
+            , clearAll = clearAllMsg
+            , clearItem = clearItemMsg
+            , undo = params.undoMsg
+            , redo = params.redoMsg
+            , canUndo = params.canUndo
+            , canRedo = params.canRedo
+            }
+    in
+    toComplexExpressionPanelConfig config [ Split, And, Or ] params cnf
+
+
 getAffixToTableGroupingPanelConfig :
     Config msg
     -> StateForGroupingPanel msg
@@ -3010,6 +3126,7 @@ view getGroupingPanelConfig affixedFrom flags config moduleClass selectedBasesCo
             , selectedAttributes = selectedAttributes
             , selectedAverages = selectedAverages
             , selectedDatasets = compatibleDatasets
+            , prerequestedAttribute = Nothing
             }
 
         audienceBrowserConfig =
@@ -3208,6 +3325,289 @@ view getGroupingPanelConfig affixedFrom flags config moduleClass selectedBasesCo
 
 {-| TODO: Too many arguments here, use a record
 -}
+viewMetadataModal :
+    (Config msg
+     -> StateForGroupingPanel msg
+     -> ( XB2GroupingPanel.Config SelectedItem msg, GroupingPanel.Config SelectedItem msg )
+    )
+    -> Analytics.AffixedFrom
+    -> Maybe Attribute
+    -> Flags
+    -> Config msg
+    -> ClassName
+    -> Int
+    -> Bool
+    -> IdDict DatasetCodeTag Dataset
+    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
+    -> IdDict WaveCodeTag Wave
+    -> IdDict LocationCodeTag Location
+    -> String
+    -> Bool
+    -> Dict.Any.AnyDict AudienceFolder.StringifiedId AudienceFolder.Id AudienceFolder.Folder
+    -> AffixingOrEditingItems
+    -> Model
+    -> List (Html msg)
+viewMetadataModal getGroupingPanelConfig affixedFrom prerequestedAttribute flags config moduleClass selectedBasesCount canUseAverage datasets datasetsToNamespaces lineages waves locations attributeBrowserInitialState shouldPassInitialStateToAttributeBrowser audienceFolders affixingItems model =
+    let
+        usedNamespaceCodes : List Namespace.Code
+        usedNamespaceCodes =
+            affixingItemsNamespaceCodes affixingItems
+
+        compatibleNamespaceCodes : WebData (Set.Any.AnySet Namespace.StringifiedCode Namespace.Code)
+        compatibleNamespaceCodes =
+            XB2.Share.Data.Labels.compatibleNamespacesWithAll lineages usedNamespaceCodes
+
+        compatibleDatasets : List Dataset
+        compatibleDatasets =
+            compatibleNamespaceCodes
+                |> RemoteData.andThen
+                    (\compatibles ->
+                        compatibles
+                            |> Set.Any.toList
+                            |> List.map (XB2.Share.Data.Platform2.datasetsForNamespace datasetsToNamespaces lineages)
+                            |> -- questionable
+                               List.filter ((/=) NotAsked)
+                            |> List.combineRemoteData
+                    )
+                |> RemoteData.map
+                    (List.foldl Set.Any.union XB2.Share.Data.Id.emptySet
+                        >> Set.Any.toList
+                    )
+                |> RemoteData.withDefault []
+                |> List.filterMap (\code -> Dict.Any.get code datasets)
+
+        ( selectedAttributes, selectedAudiences, selectedAverages ) =
+            UndoRedo.current model
+                |> .selectedItems
+                |> List.foldr
+                    (\item ( attrs, audiences, averages ) ->
+                        case item of
+                            SelectedAttribute attribute ->
+                                ( attribute :: attrs, audiences, averages )
+
+                            SelectedAudience audience ->
+                                ( attrs, audience :: audiences, averages )
+
+                            SelectedAverage avg ->
+                                ( attrs, audiences, avg :: averages )
+
+                            SelectedGroup group ->
+                                ( getAttributesFromGroup group ++ attrs, getAudiencesFromGroup group ++ audiences, averages )
+                    )
+                    ( [], [], [] )
+
+        attributeBrowserConfig =
+            { noOp = config.noOp
+            , toggleAttributes = config.msg << ToggleAttributes
+            , addAttributes = config.msg << AddAttributes
+            , loadingAttributes = config.msg << LoadingAttributes
+            , toggleAverage = config.msg << ToggleAverage
+            , setDecodingError = config.msg << SetDecodingError
+            , warningNoteOpened = config.msg << IncompatibilityWarningNoteOpened
+            , gotStateSnapshot = config.gotAttributeBrowserStateSnapshot
+            , waves = waves
+            , locations = locations
+            , activeWaves = UndoRedo.current model |> .activeWaves
+            , activeLocations = UndoRedo.current model |> .activeLocations
+            , canUseAverage = canUseAverage
+            , selectedAttributes = selectedAttributes
+            , selectedAverages = selectedAverages
+            , selectedDatasets = compatibleDatasets
+            , prerequestedAttribute = prerequestedAttribute
+            }
+
+        audienceBrowserConfig =
+            { toggleAudience = config.msg << ToggleItem << SelectedAudience
+            , showDisabledWarning = config.msg ShowDisabledWarningInAB
+            , createAudience = config.createAudience
+            , editAudience = config.editAudience
+            , preexistingAudiences = []
+            , stagedAudiences = selectedAudiences
+            , isBase = False
+            , setDecodingError = config.msg << SetDecodingError
+            , compatibleNamespaces =
+                compatibleNamespaceCodes
+                    |> RemoteData.map Set.Any.toList
+                    |> RemoteData.withDefault []
+            , allDatasets = Dict.Any.values datasets
+            , appName = "CrosstabBuilder"
+            , hideMyAudiencesTab = False
+            }
+
+        attributesGroupingPanelConfig : SelectedItems -> ( XB2GroupingPanel.Config SelectedItem msg, GroupingPanel.Config SelectedItem msg )
+        attributesGroupingPanelConfig items =
+            let
+                itemsCount =
+                    List.length items
+
+                activeGrouping =
+                    if itemsCount <= 1 then
+                        Split
+
+                    else
+                        UndoRedo.current model |> .activeGrouping
+            in
+            getGroupingPanelConfig config
+                { clearAllMsg = config.msg ClearAll
+                , clearItemMsg = config.msg << ToggleItem
+                , isAffixing = affixingItems /= NotAffixingOrEditing
+                , originalItemsBeforeEditing = UndoRedo.current model |> .originalSelectedItemsBeforeEditing
+                , groupingSelectedMsg =
+                    if affixingItems == NotAffixingOrEditing then
+                        config.msg << ComplexMainGroupingSelected
+
+                    else
+                        config.msg << GroupingSelected
+                , activeGrouping = activeGrouping
+                , items = items
+                , selectedBasesCount = selectedBasesCount
+                , warning = UndoRedo.current model |> .groupingPanelWarning
+                , affixedFrom = affixedFrom
+                , attributesLoading = UndoRedo.current model |> .attributeBrowserLoadingAttributes
+                , model = model
+                , undoMsg = config.msg UndoChangesInAttributeBrowser
+                , redoMsg = config.msg RedoChangesInAttributeBrowser
+                , canUndo = UndoRedo.hasPast model
+                , canRedo = UndoRedo.hasFuture model
+                }
+
+        complexExpressionsPanelClass =
+            moduleClass |> WeakCss.addMany [ "attribute-browser", "complex-grouping-panel" ]
+
+        warningsView : NonEmpty AttributeBrowser.Warning -> Html msg
+        warningsView =
+            NonemptyList.toList
+                >> List.fastConcatMap
+                    (\warning ->
+                        if List.isEmpty warning.waveNames then
+                            [ ( "any of your selected waves", warning.locationsText ) ]
+
+                        else
+                            warning.waveNames
+                                |> List.map (\w -> ( w, warning.locationsText ))
+                    )
+                >> List.groupBy Tuple.first
+                >> List.map
+                    (\{ key, items } ->
+                        let
+                            locs : List String
+                            locs =
+                                items
+                                    |> NonemptyList.map Tuple.second
+                                    |> NonemptyList.toList
+                                    |> Maybe.values
+                        in
+                        Html.div []
+                            [ Html.text "- Not asked in "
+                            , Html.strong [] [ Html.text key ]
+                            , Html.text " in:"
+                            , Html.div
+                                [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "list", "item" ] moduleClass ]
+                                [ Html.strong [] [ Html.text <| String.join ", " locs ] ]
+                            ]
+                    )
+                >> Html.div [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "list" ] moduleClass ]
+
+        groupOrWarningView : Html msg
+        groupOrWarningView =
+            case UndoRedo.current model |> .incompatibilityWarningNote of
+                Just note ->
+                    Html.div [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning" ] moduleClass ]
+                        [ Html.button
+                            [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "close" ] moduleClass
+                            , Events.onClick <| config.msg CloseIncompatibilityWarningNote
+                            ]
+                            [ XB2.Share.Icons.icon [] P2Icons.cross
+                            ]
+                        , Html.h3 [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "header" ] moduleClass ]
+                            [ Html.span [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "header", "icon" ] moduleClass ]
+                                [ XB2.Share.Icons.icon [] P2Icons.warning ]
+                            , Html.text note.title
+                            ]
+                        , Html.p [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "warning", "disclaimer" ] moduleClass ]
+                            [ Html.text "The below warning means that your specific combination of attributes was not asked in certain waves and locations, however the data "
+                            , Html.strong [] [ Html.text "is still valid" ]
+                            , Html.text "."
+                            ]
+                        , Html.viewMaybe warningsView note.warnings
+                        ]
+
+                Nothing ->
+                    let
+                        loadingLineages : Bool
+                        loadingLineages =
+                            lineages
+                                |> Dict.Any.values
+                                |> List.any RemoteData.isLoading
+                    in
+                    if loadingLineages then
+                        Html.div [ WeakCss.nestMany [ "attribute-browser", "content", "right-part", "spinner" ] moduleClass ] [ XB2.Share.Spinner.view ]
+
+                    else
+                        XB2GroupingPanel.view (Tuple.first <| attributesGroupingPanelConfig (UndoRedo.current model |> .selectedItems)) complexExpressionsPanelClass
+    in
+    [ Html.div
+        [ WeakCss.nest "attribute-browser" moduleClass ]
+        [ P2Modals.headerWithTabsView
+            config.closeModal
+            (WeakCss.add "general-modal" moduleClass)
+            [ { title = "Metadata"
+              , active = True
+              , icon = P2Icons.info
+              , onClick = Nothing
+              }
+            ]
+        , Html.div
+            [ WeakCss.nestMany [ "attribute-browser", "content" ] moduleClass ]
+            [ Html.div
+                [ WeakCss.nestMany [ "attribute-browser", "content", "left-part" ] moduleClass ]
+                [ Html.div
+                    [ WeakCss.addMany [ "attribute-browser", "content", "left-part", "attributes" ] moduleClass
+                        |> WeakCss.withStates [ ( "visible", (UndoRedo.current model |> .activeTab) == AttributesTab ) ]
+                    ]
+                    [ AttributeBrowser.view flags
+                        attributeBrowserConfig
+                        attributeBrowserInitialState
+                        shouldPassInitialStateToAttributeBrowser
+                    ]
+                , Html.div
+                    [ WeakCss.addMany [ "attribute-browser", "content", "left-part", "audiences" ] moduleClass
+                        |> WeakCss.withStates [ ( "visible", (UndoRedo.current model |> .activeTab) == AudiencesTab ) ]
+                    ]
+                    [ AudienceBrowser.view
+                        flags
+                        audienceBrowserConfig
+                        audienceFolders
+                    ]
+                ]
+            , Html.div
+                [ WeakCss.addMany [ "attribute-browser", "content", "right-part" ] moduleClass
+                    |> WeakCss.withStates [ ( "dragging", Maybe.isJust <| dndSystem.info (UndoRedo.current model |> .dnd |> .list) ) ]
+                ]
+                [ groupOrWarningView
+                , Html.Lazy.lazy2 ghostView
+                    complexExpressionsPanelClass
+                    (UndoRedo.current model |> .dnd)
+                    |> Html.map config.msg
+                ]
+            , UndoRedo.current model
+                |> .errorMessage
+                |> Html.viewMaybe
+                    (\err ->
+                        Html.div
+                            [ WeakCss.nestMany [ "attribute-browser", "content", "error-view" ] moduleClass ]
+                            [ Html.text err ]
+                    )
+            ]
+        ]
+    , Html.viewMaybe DropdownMenu.view (UndoRedo.current model |> .activeDropdown)
+        |> Html.map config.msg
+    ]
+
+
+{-| TODO: Too many arguments here, use a record
+-}
 addToTableView :
     Flags
     -> Config msg
@@ -3231,6 +3631,30 @@ addToTableView =
 
 {-| TODO: Too many arguments here, use a record
 -}
+metadataNotesView :
+    Attribute
+    -> Flags
+    -> Config msg
+    -> ClassName
+    -> Int
+    -> Bool
+    -> IdDict DatasetCodeTag Dataset
+    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
+    -> IdDict WaveCodeTag Wave
+    -> IdDict LocationCodeTag Location
+    -> String
+    -> Bool
+    -> Dict.Any.AnyDict AudienceFolder.StringifiedId AudienceFolder.Id AudienceFolder.Folder
+    -> AffixingOrEditingItems
+    -> Model
+    -> List (Html msg)
+metadataNotesView attribute =
+    viewMetadataModal getMetadataNotesViewConfig Analytics.NotTracked (Just attribute)
+
+
+{-| TODO: Too many arguments here, use a record
+-}
 affixTableView :
     Analytics.AffixedFrom
     -> Flags
@@ -3249,8 +3673,8 @@ affixTableView :
     -> AffixingOrEditingItems
     -> Model
     -> List (Html msg)
-affixTableView =
-    view getAffixToTableGroupingPanelConfig
+affixTableView analytics =
+    view getAffixToTableGroupingPanelConfig analytics
 
 
 {-| TODO: Too many arguments here, use a record

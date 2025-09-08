@@ -71,6 +71,9 @@ type alias Config msg =
     , selectedAttributes : List Attribute
     , selectedAverages : List Average
     , selectedDatasets : List Dataset
+
+    -- metadata modal
+    , prerequestedAttribute : Maybe Attribute
     }
 
 
@@ -484,6 +487,15 @@ view flags config initialState shouldPassInitialState =
 
                 else
                     []
+               )
+            ++ (case config.prerequestedAttribute of
+                    Just attribute ->
+                        [ Attrs.attribute "prerequested-attribute" (Encode.encode 0 <| XB2.Share.Data.Platform2.encodeUnwrappedAttribute attribute)
+                        , Attrs.attribute "prerequested-attribute-selected-view" "notes"
+                        ]
+
+                    Nothing ->
+                        []
                )
         )
         []

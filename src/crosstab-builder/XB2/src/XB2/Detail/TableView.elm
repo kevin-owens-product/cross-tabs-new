@@ -3761,7 +3761,6 @@ viewHeaderDropdown triggers params =
 
         isSortingByThisDirection : SortDirection -> Bool
         isSortingByThisDirection sortDirection =
-            -- Debug.todo "here check for totals too 2"
             List.foldl
                 (\metric acc ->
                     acc
