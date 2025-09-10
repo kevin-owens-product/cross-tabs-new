@@ -292,6 +292,8 @@ subscriptions model =
         [ Ports.unmountXB2 (\() -> SetMountedState False)
         , Ports.mountXB2 (\() -> SetMountedState True)
         , Ports.bookADemoButtonClicked (\() -> BookADemoButtonClicked)
+        , Ports.talkToAnExpertSplashEvent (\() -> TalkToAnExpertButtonClicked)
+        , Ports.upgradeSplashEvent (\() -> UpgradeButtonClicked)
         , Ports.routeChangedXB2 UrlChanged
         , XB2.Share.Ports.setNewAccessToken SetNewAccessToken
         , model
@@ -812,9 +814,6 @@ errorView error =
             -- `isAppMounted` gets setted by kernel's ports.
             if isAppMounted then
                 SplashScreen.view
-                    { talkToAnExpert = TalkToAnExpertButtonClicked
-                    , upgrade = UpgradeButtonClicked
-                    }
                     { appName = "crosstabs"
                     , email = userEmail
                     , upgradePlanUrl = SplashScreen.getUpgradePlanUrlBasedOnUserPlan userPlan

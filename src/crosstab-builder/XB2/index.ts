@@ -264,6 +264,14 @@ export function mount(props) {
             app.ports.bookADemoButtonClicked.send(null);
         });
 
+        // Splash screen events
+        window.addEventListener("CrosstabBuilder-talkToAnExpertEvent", () => {
+            app.ports.talkToAnExpertSplashEvent.send(null);
+        });
+        window.addEventListener("CrosstabBuilder-upgradeEvent", () => {
+            app.ports.upgradeSplashEvent.send(null);
+        });
+
         // @ts-ignore
         windowPorts.subscribeOpenNewWindowXB2(app);
         // @ts-ignore

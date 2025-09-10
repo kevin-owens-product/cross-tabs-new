@@ -1,10 +1,8 @@
-module XB2.Views.SplashScreen exposing (Params, Triggers, getUpgradePlanUrlBasedOnUserPlan, view)
+module XB2.Views.SplashScreen exposing (Params, getUpgradePlanUrlBasedOnUserPlan, view)
 
 import Html
 import Html.Attributes as Attrs
 import Html.Attributes.Extra as Attrs
-import Html.Events as Events
-import Json.Decode as Decode
 import XB2.Data.Zod.Optional as Optional
 import XB2.Share.Data.User as User
 
@@ -13,12 +11,6 @@ type alias Params =
     { appName : String
     , email : String
     , upgradePlanUrl : Optional.Optional String
-    }
-
-
-type alias Triggers msg =
-    { talkToAnExpert : msg
-    , upgrade : msg
     }
 
 
@@ -62,18 +54,16 @@ getUpgradePlanUrlBasedOnUserPlan userPlan =
             Optional.Undefined
 
 
-paramsToAttributes : Triggers msg -> Params -> List (Html.Attribute msg)
-paramsToAttributes triggers params =
+paramsToAttributes : Params -> List (Html.Attribute msg)
+paramsToAttributes params =
     [ Attrs.attribute "app-name" params.appName
     , Attrs.attribute "email" params.email
     , Attrs.attributeMaybe (Attrs.attribute "upgrade-plan-url") (Optional.toMaybe params.upgradePlanUrl)
-    , Events.on "CrosstabBuilder-talkToAnExpertEvent" (Decode.succeed triggers.talkToAnExpert)
-    , Events.on "CrosstabBuilder-upgradeEvent" (Decode.succeed triggers.upgrade)
     ]
 
 
-view : Triggers msg -> Params -> Html.Html msg
-view triggers params =
+view : Params -> Html.Html msg
+view params =
     Html.node "x-et-splash-screen"
-        (paramsToAttributes triggers params)
+        (paramsToAttributes params)
         []

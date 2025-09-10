@@ -1,7 +1,7 @@
 port module XB2.Ports exposing
     ( mountXB2, mountedXB2, unmountXB2, unmountedXB2
     , checkRouteInterruptionXB2, interruptRoutingStatusXB2, navigateToXB2, openNewWindowXB2, routeChangedXB2, setXBProjectCheckBeforeLeave
-    , bookADemoButtonClicked
+    , bookADemoButtonClicked, talkToAnExpertSplashEvent, upgradeSplashEvent
     )
 
 {-| The module where the Crosstabs' ports dwell.
@@ -19,7 +19,7 @@ port module XB2.Ports exposing
 
 # Subscriptions from web components
 
-@docs bookADemoButtonClicked
+@docs bookADemoButtonClicked, talkToAnExpertSplashEvent, upgradeSplashEvent
 
 -}
 
@@ -55,3 +55,9 @@ port setXBProjectCheckBeforeLeave : Bool -> Cmd nsg
 
 
 port bookADemoButtonClicked : (() -> msg) -> Sub msg
+
+
+port talkToAnExpertSplashEvent : (() -> msg) -> Sub msg
+
+
+port upgradeSplashEvent : (() -> msg) -> Sub msg
