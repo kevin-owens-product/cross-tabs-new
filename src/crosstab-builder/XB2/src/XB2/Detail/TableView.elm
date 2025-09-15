@@ -106,7 +106,6 @@ import XB2.Sort as Sort
         , SortDirection(..)
         )
 import XB2.Store as XBStore
-import XB2.Views.Onboarding as Onboarding
 import XB2.Views.Scrollbar as Scrollbar
 import XB2.Views.SelectionPanel as SelectionPanel
 
@@ -885,38 +884,6 @@ tableCountsView config userSettings model () =
                     , userSettingsLiView "xb2ListFTUESeen"
                         .xb2ListFTUESeen
                         (\s -> { s | xb2ListFTUESeen = not s.xb2ListFTUESeen })
-                    , userSettingsLiView "renamingCellsOnboardingSeen"
-                        .renamingCellsOnboardingSeen
-                        (\s ->
-                            { s
-                                | renamingCellsOnboardingSeen =
-                                    not s.renamingCellsOnboardingSeen
-                            }
-                        )
-                    , userSettingsLiView "freezeRowsColumnsOnboardingSeen"
-                        .freezeRowsColumnsOnboardingSeen
-                        (\s ->
-                            { s
-                                | freezeRowsColumnsOnboardingSeen =
-                                    not s.freezeRowsColumnsOnboardingSeen
-                            }
-                        )
-                    , userSettingsLiView "unfreezeTheFilters"
-                        .unfreezeTheFilters
-                        (\s ->
-                            { s
-                                | unfreezeTheFilters =
-                                    not s.unfreezeTheFilters
-                            }
-                        )
-                    , userSettingsLiView "editABOnboardingSeen"
-                        .editAttributeExpressionOnboardingSeen
-                        (\s ->
-                            { s
-                                | editAttributeExpressionOnboardingSeen =
-                                    not s.editAttributeExpressionOnboardingSeen
-                            }
-                        )
                     , liView "------------------------------------------------"
                     , liView "*Do not show again types*"
                     ]
@@ -1099,202 +1066,7 @@ toolsPanelView config can xbStore store model =
                 drawersPanelData
             , Html.viewIfLazy (can XB2.Share.Permissions.UseDebugButtons)
                 (tableCountsView config xbStore.userSettings model)
-            , Html.viewIf (ACrosstab.isEmpty crosstab)
-                (unfreezeFiltersOnboardingView config.updateUserSettings xbStore.userSettings)
             ]
-
-
-{-| Onboarding modal for the Freezing Rows and Columns feature. Dismisses with a click on
-"Got it"
--}
-freezingRowsAndColumnsOnboardingView : (XBUserSettings -> msg) -> WebData XBUserSettings -> Html msg
-freezingRowsAndColumnsOnboardingView updateUserSettingsMsg remoteUserSettings =
-    let
-        showOnboarding : Bool
-        showOnboarding =
-            case remoteUserSettings of
-                RemoteData.Success { freezeRowsColumnsOnboardingSeen } ->
-                    not freezeRowsColumnsOnboardingSeen
-
-                RemoteData.Failure _ ->
-                    False
-
-                RemoteData.NotAsked ->
-                    False
-
-                RemoteData.Loading ->
-                    False
-    in
-    Html.viewIfLazy showOnboarding <|
-        \() ->
-            Html.viewMaybe
-                (\closeMsg ->
-                    Html.div
-                        [ WeakCss.nestMany
-                            [ "freezing"
-                            , "onboarding"
-                            ]
-                            moduleClass
-                        ]
-                        [ Html.div
-                            [ WeakCss.nestMany
-                                [ "freezing"
-                                , "onboarding"
-                                , "banner"
-                                ]
-                                moduleClass
-                            ]
-                            []
-                        , Html.span
-                            [ WeakCss.nestMany
-                                [ "freezing"
-                                , "onboarding"
-                                , "new-badge"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text "New" ]
-                        , Html.h3
-                            [ WeakCss.nestMany
-                                [ "freezing"
-                                , "onboarding"
-                                , "title"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text "Freeze Cells with Ease! ❄️" ]
-                        , Html.p
-                            [ WeakCss.nestMany
-                                [ "freezing"
-                                , "onboarding"
-                                , "tip"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text
-                                """Introducing the ability to freeze cells in your 
-                                crosstabs effortlessly. Maintain key information at your 
-                                fingertips for a more focused analysis."""
-                            ]
-                        , Html.button
-                            [ WeakCss.nestMany
-                                [ "freezing"
-                                , "onboarding"
-                                , "got-it"
-                                ]
-                                moduleClass
-                            , Events.onClick closeMsg
-                            ]
-                            [ Html.text "Got it" ]
-                        ]
-                )
-                (remoteUserSettings
-                    |> RemoteData.toMaybe
-                    |> Maybe.map
-                        (\settings ->
-                            updateUserSettingsMsg
-                                { settings
-                                    | freezeRowsColumnsOnboardingSeen = True
-                                }
-                        )
-                )
-
-
-{-| Onboarding modal for the Unfreeze filters option feature. Dismisses with a click on
-"Got it"
--}
-unfreezeFiltersOnboardingView : (XBUserSettings -> msg) -> WebData XBUserSettings -> Html msg
-unfreezeFiltersOnboardingView updateUserSettingsMsg remoteUserSettings =
-    let
-        showOnboarding : Bool
-        showOnboarding =
-            case remoteUserSettings of
-                RemoteData.Success { unfreezeTheFilters } ->
-                    not unfreezeTheFilters
-
-                RemoteData.Failure _ ->
-                    False
-
-                RemoteData.NotAsked ->
-                    False
-
-                RemoteData.Loading ->
-                    False
-    in
-    Html.viewIfLazy showOnboarding <|
-        \() ->
-            Html.viewMaybe
-                (\closeMsg ->
-                    Html.div
-                        [ WeakCss.nestMany
-                            [ "unfreeze"
-                            , "onboarding"
-                            ]
-                            moduleClass
-                        ]
-                        [ Html.div
-                            [ WeakCss.nestMany
-                                [ "unfreeze"
-                                , "onboarding"
-                                , "banner"
-                                ]
-                                moduleClass
-                            ]
-                            []
-                        , Html.span
-                            [ WeakCss.nestMany
-                                [ "unfreeze"
-                                , "onboarding"
-                                , "new-badge"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text "New" ]
-                        , Html.h3
-                            [ WeakCss.nestMany
-                                [ "unfreeze"
-                                , "onboarding"
-                                , "title"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text "Want to start here? Now you can!" ]
-                        , Html.p
-                            [ WeakCss.nestMany
-                                [ "unfreeze"
-                                , "onboarding"
-                                , "tip"
-                                ]
-                                moduleClass
-                            ]
-                            [ Html.text
-                                """You can now select locations and waves 
-                                before adding questions in Crosstabs, 
-                                another way to get to where you want, 
-                                adding even more ease to your workflow."""
-                            ]
-                        , Html.button
-                            [ WeakCss.nestMany
-                                [ "unfreeze"
-                                , "onboarding"
-                                , "got-it"
-                                ]
-                                moduleClass
-                            , Events.onClick closeMsg
-                            ]
-                            [ Html.text "Got it" ]
-                        ]
-                )
-                (remoteUserSettings
-                    |> RemoteData.toMaybe
-                    |> Maybe.map
-                        (\settings ->
-                            updateUserSettingsMsg
-                                { settings
-                                    | unfreezeTheFilters = True
-                                }
-                        )
-                )
 
 
 
@@ -1954,10 +1726,9 @@ viewOptionsDropdownView :
     ->
         { isDropdownOpen : Bool
         , isHeaderCollapsed : Bool
-        , userSettings : WebData XBUserSettings
         }
     -> Html msg
-viewOptionsDropdownView config can model { isDropdownOpen, isHeaderCollapsed, userSettings } =
+viewOptionsDropdownView config can model { isDropdownOpen, isHeaderCollapsed } =
     let
         dropdownClass : ClassName
         dropdownClass =
@@ -2033,8 +1804,6 @@ viewOptionsDropdownView config can model { isDropdownOpen, isHeaderCollapsed, us
             , wrapperAttributes = []
             , tooltipText = "View options"
             }
-        , freezingRowsAndColumnsOnboardingView config.updateUserSettings
-            userSettings
         , Html.viewIfLazy isDropdownOpen
             (\_ ->
                 Html.div
@@ -2790,7 +2559,6 @@ basesPanelView config can model { userSettings } activeDropdown =
                     model
                     { isDropdownOpen = activeDropdown == Just ViewOptionsDropdown
                     , isHeaderCollapsed = isHeaderCollapsed
-                    , userSettings = userSettings
                     }
                 , sortByNameDropdownView config
                     model
@@ -2866,7 +2634,6 @@ basesPanelView config can model { userSettings } activeDropdown =
                     model
                     { isDropdownOpen = activeDropdown == Just ViewOptionsDropdown
                     , isHeaderCollapsed = isHeaderCollapsed
-                    , userSettings = userSettings
                     }
                 , sortByNameDropdownView config
                     model
@@ -3180,91 +2947,6 @@ selectCheckboxView config direction key =
                 ]
             ]
         ]
-
-
-{-| A view containing the onboarding modal for the Renaming cells feature.
--}
-renamingCellsOnboardingView :
-    (XBUserSettings -> msg)
-    -> WebData XBUserSettings
-    -> Html msg
-renamingCellsOnboardingView updateUserSettingsMsg userSettings =
-    let
-        showOnboarding : Bool
-        showOnboarding =
-            case userSettings of
-                RemoteData.Success { renamingCellsOnboardingSeen } ->
-                    not renamingCellsOnboardingSeen
-
-                RemoteData.NotAsked ->
-                    False
-
-                RemoteData.Loading ->
-                    False
-
-                RemoteData.Failure _ ->
-                    False
-    in
-    Html.viewIfLazy showOnboarding <|
-        \() ->
-            Html.viewMaybe
-                (\closeMsg ->
-                    Html.div
-                        [ WeakCss.nestMany
-                            [ "table"
-                            , "renaming-cells"
-                            , "onboarding"
-                            ]
-                            tableModuleClass
-                        ]
-                        [ Html.h3
-                            [ WeakCss.nestMany
-                                [ "table"
-                                , "renaming-cells"
-                                , "onboarding"
-                                , "title"
-                                ]
-                                tableModuleClass
-                            ]
-                            [ Html.text "Easily Rename Cells in Crosstabs! 🌟" ]
-                        , Html.p
-                            [ WeakCss.nestMany
-                                [ "table"
-                                , "renaming-cells"
-                                , "onboarding"
-                                , "tip"
-                                ]
-                                tableModuleClass
-                            ]
-                            [ Html.text
-                                """You can now personalize cell names in your crosstabs 
-                                effortlessly! Simply hover over a cell, click, and give 
-                                it a name that makes sense to you. It's that simple! Try 
-                                it out now and level up your data game!"""
-                            ]
-                        , Html.button
-                            [ WeakCss.nestMany
-                                [ "table"
-                                , "renaming-cells"
-                                , "onboarding"
-                                , "got-it"
-                                ]
-                                tableModuleClass
-                            , Events.onClick closeMsg
-                            ]
-                            [ Html.text "Got it" ]
-                        ]
-                )
-                (userSettings
-                    |> RemoteData.toMaybe
-                    |> Maybe.map
-                        (\settings ->
-                            updateUserSettingsMsg
-                                { settings
-                                    | renamingCellsOnboardingSeen = True
-                                }
-                        )
-                )
 
 
 {-| View for the item title/subtitle inside the header rows and columns.
@@ -6158,54 +5840,6 @@ tableView triggers params =
                 :: ACrosstab.getRows params.crosstab
                 |> List.take nFrozenRows
 
-        renamingOnboardingView : Html msg
-        renamingOnboardingView =
-            let
-                hasThisBeenSeenInUserSettings : Bool
-                hasThisBeenSeenInUserSettings =
-                    RemoteData.unwrap False .renamingCellsOnboardingSeen params.xbStore.userSettings
-
-                hasEditABExprBeenSeenInUserSettings : Bool
-                hasEditABExprBeenSeenInUserSettings =
-                    RemoteData.unwrap False .editAttributeExpressionOnboardingSeen params.xbStore.userSettings
-
-                thereIsAtLeastOneRowHeader : Bool
-                thereIsAtLeastOneRowHeader =
-                    List.length rowHeaders > 1
-
-                shouldThisBeSeen : Bool
-                shouldThisBeSeen =
-                    not hasThisBeenSeenInUserSettings && thereIsAtLeastOneRowHeader && hasEditABExprBeenSeenInUserSettings
-            in
-            Html.viewIf shouldThisBeSeen
-                (Html.div [ WeakCss.nestMany [ "table", "renaming-cells" ] tableModuleClass ]
-                    [ renamingCellsOnboardingView triggers.config.updateUserSettings params.xbStore.userSettings
-                    ]
-                )
-
-        editAttributeExprOnboardingView : Html msg
-        editAttributeExprOnboardingView =
-            let
-                beenSeenInUserSettings : Bool
-                beenSeenInUserSettings =
-                    RemoteData.unwrap False .editAttributeExpressionOnboardingSeen params.xbStore.userSettings
-
-                shouldBeSeen : Bool
-                shouldBeSeen =
-                    not beenSeenInUserSettings && (List.length rowHeaders > 0 || List.length columnHeaders > 0)
-            in
-            Html.viewIf shouldBeSeen <|
-                Html.div
-                    [ WeakCss.addMany [ "table", "edit-ab-exp" ] tableModuleClass
-                        |> WeakCss.withStates [ ( "for-row", List.length columnHeaders <= 1 ) ]
-                    ]
-                    [ Onboarding.viewEditABExpBasedOnUserSettings
-                        { updateUserSettingsToMsg = triggers.config.updateUserSettings }
-                        { remoteUserSettings = params.xbStore.userSettings
-                        , className = WeakCss.addMany [ "table", "edit-ab-exp" ] tableModuleClass
-                        }
-                    ]
-
         isInDebugMode : Bool
         isInDebugMode =
             RemoteData.unwrap False .showDetailTableInDebugMode params.xbStore.userSettings
@@ -6447,8 +6081,6 @@ tableView triggers params =
             { dndModel = dndModel
             , isInDebugMode = isInDebugMode
             }
-        , renamingOnboardingView
-        , editAttributeExprOnboardingView
         ]
 
 

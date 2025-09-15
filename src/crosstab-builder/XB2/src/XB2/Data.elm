@@ -347,12 +347,8 @@ type alias XBUserSettings =
     { canShowSharedProjectWarning : Bool
     , xb2ListFTUESeen : Bool
     , doNotShowAgain : List DoNotShowAgain
-    , renamingCellsOnboardingSeen : Bool
-    , freezeRowsColumnsOnboardingSeen : Bool
-    , unfreezeTheFilters : Bool
     , showDetailTableInDebugMode : Bool
     , pinDebugOptions : Bool
-    , editAttributeExpressionOnboardingSeen : Bool
     }
 
 
@@ -1045,27 +1041,11 @@ xbUserSettingsDecoder =
                     |> Decode.map (Maybe.andThen Maybe.combine >> Maybe.withDefault [])
                 )
             |> Decode.andMap
-                (Decode.optionalField "renaming_cells_onboarding_seen" Decode.bool
-                    |> Decode.map (Maybe.withDefault False)
-                )
-            |> Decode.andMap
-                (Decode.optionalField "freeze_rows_columns_onboarding_seen" Decode.bool
-                    |> Decode.map (Maybe.withDefault False)
-                )
-            |> Decode.andMap
-                (Decode.optionalField "unfreeze_the_filters" Decode.bool
-                    |> Decode.map (Maybe.withDefault False)
-                )
-            |> Decode.andMap
                 (Decode.optionalField "show_detail_table_in_debug_mode" Decode.bool
                     |> Decode.map (Maybe.withDefault False)
                 )
             |> Decode.andMap
                 (Decode.optionalField "pin_debug_options" Decode.bool
-                    |> Decode.map (Maybe.withDefault False)
-                )
-            |> Decode.andMap
-                (Decode.optionalField "edit_ab_onboarding_seen" Decode.bool
                     |> Decode.map (Maybe.withDefault False)
                 )
         )
@@ -1085,22 +1065,10 @@ xbUserSettingsEncode settings =
                 , ( "do_not_show_again"
                   , Encode.list doNotShowAgainEncode settings.doNotShowAgain
                   )
-                , ( "renaming_cells_onboarding_seen"
-                  , Encode.bool settings.renamingCellsOnboardingSeen
-                  )
-                , ( "freeze_rows_columns_onboarding_seen"
-                  , Encode.bool settings.freezeRowsColumnsOnboardingSeen
-                  )
-                , ( "unfreeze_the_filters"
-                  , Encode.bool settings.unfreezeTheFilters
-                  )
                 , ( "show_detail_table_in_debug_mode"
                   , Encode.bool settings.showDetailTableInDebugMode
                   )
                 , ( "pin_debug_options", Encode.bool settings.pinDebugOptions )
-                , ( "edit_ab_onboarding_seen"
-                  , Encode.bool settings.editAttributeExpressionOnboardingSeen
-                  )
                 ]
           )
         ]

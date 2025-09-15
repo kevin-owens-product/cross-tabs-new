@@ -96,12 +96,8 @@ suite =
                                 { canShowSharedProjectWarning = True
                                 , xb2ListFTUESeen = False
                                 , doNotShowAgain = [ DeleteRowsColumnsModal ]
-                                , renamingCellsOnboardingSeen = False
-                                , freezeRowsColumnsOnboardingSeen = False
-                                , unfreezeTheFilters = False
                                 , showDetailTableInDebugMode = False
                                 , pinDebugOptions = False
-                                , editAttributeExpressionOnboardingSeen = False
                                 }
                             )
             , test "doNotShowDeleteBasesModal" <|
@@ -113,12 +109,8 @@ suite =
                                 { canShowSharedProjectWarning = True
                                 , xb2ListFTUESeen = True
                                 , doNotShowAgain = [ DeleteBasesModal ]
-                                , renamingCellsOnboardingSeen = False
-                                , freezeRowsColumnsOnboardingSeen = False
-                                , unfreezeTheFilters = False
                                 , showDetailTableInDebugMode = False
                                 , pinDebugOptions = False
-                                , editAttributeExpressionOnboardingSeen = False
                                 }
                             )
             , test "doNotShowAll" <|
@@ -130,12 +122,8 @@ suite =
                                 { canShowSharedProjectWarning = False
                                 , xb2ListFTUESeen = True
                                 , doNotShowAgain = [ DeleteRowsColumnsModal, DeleteBasesModal ]
-                                , renamingCellsOnboardingSeen = False
-                                , freezeRowsColumnsOnboardingSeen = False
-                                , unfreezeTheFilters = False
                                 , showDetailTableInDebugMode = False
                                 , pinDebugOptions = False
-                                , editAttributeExpressionOnboardingSeen = False
                                 }
                             )
             , test "doNotBreakOnNonExistentUserSetting" <|
@@ -147,12 +135,8 @@ suite =
                                 { canShowSharedProjectWarning = False
                                 , xb2ListFTUESeen = False
                                 , doNotShowAgain = []
-                                , renamingCellsOnboardingSeen = False
-                                , freezeRowsColumnsOnboardingSeen = False
-                                , unfreezeTheFilters = False
                                 , showDetailTableInDebugMode = False
                                 , pinDebugOptions = False
-                                , editAttributeExpressionOnboardingSeen = False
                                 }
                             )
             , test "show Complex Expression Onboarding" <|
@@ -164,12 +148,8 @@ suite =
                                 { canShowSharedProjectWarning = False
                                 , xb2ListFTUESeen = False
                                 , doNotShowAgain = []
-                                , renamingCellsOnboardingSeen = False
-                                , freezeRowsColumnsOnboardingSeen = False
-                                , unfreezeTheFilters = False
                                 , showDetailTableInDebugMode = False
                                 , pinDebugOptions = False
-                                , editAttributeExpressionOnboardingSeen = False
                                 }
                             )
             ]
