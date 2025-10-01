@@ -83,7 +83,7 @@ export const authMasqueradingTokenCookieName = (environment) => {
         case "staging":
             return "auth_gwi_staging_masquerading";
         case "alpha":
-            return "auth_gwi_staging_masquerading"; // staging not a typo
+            return "auth_gwi_alpha_masquerading"; 
         case "testing":
             return "auth_gwi_testing_masquerading";
         case "development":

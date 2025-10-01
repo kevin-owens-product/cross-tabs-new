@@ -176,7 +176,7 @@ staging =
 alpha : Config
 alpha =
     { uri = alphaUris
-    , authCookieName = "auth_gwi_staging"
+    , authCookieName = "auth_gwi_alpha"
     }
 
 
