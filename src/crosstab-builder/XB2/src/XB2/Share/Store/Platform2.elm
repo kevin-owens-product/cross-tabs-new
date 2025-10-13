@@ -41,8 +41,8 @@ import XB2.Share.Data.Labels as Labels
         , NamespaceAndQuestionCode
         , NamespaceAndQuestionCodeTag
         , NamespaceLineage
+        , Question
         , QuestionAndDatapointCode
-        , QuestionV2
         , Region
         , Wave
         , WaveCodeTag
@@ -99,7 +99,7 @@ type AudienceRelatedMsg
 
 type Msg
     = AudienceRelatedMsg AudienceRelatedMsg
-    | QuestionFetched NamespaceAndQuestionCode QuestionV2
+    | QuestionFetched NamespaceAndQuestionCode Question
     | QuestionFetchError NamespaceAndQuestionCode Bool (Store -> Store) (Error Never)
     | LocationsFetched (List Location)
     | LocationsByNamespaceFetched Namespace.Code (List Location)
@@ -127,7 +127,7 @@ type alias Store =
     , audiences : WebData (Dict.Any.AnyDict Audience.StringifiedId Audience.Id Audience.Audience)
     , audiencesV1ToV2 : WebData (Dict.Any.AnyDict Audience.StringifiedId Audience.Id Audience.Audience)
     , splitters : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData (IdDict SplitterCodeTag Splitter))
-    , questions : IdDict NamespaceAndQuestionCodeTag (WebData QuestionV2)
+    , questions : IdDict NamespaceAndQuestionCodeTag (WebData Question)
     , categories : WebData (IdDict CategoryIdTag Category)
     , locations : WebData (IdDict LocationCodeTag Location)
     , locationsByNamespace : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData (IdDict LocationCodeTag Location))
@@ -517,14 +517,14 @@ update config msg store =
             )
 
 
-getQuestion : NamespaceAndQuestionCode -> Store -> WebData QuestionV2
+getQuestion : NamespaceAndQuestionCode -> Store -> WebData Question
 getQuestion questionCode store =
     store.questions
         |> Dict.Any.get questionCode
         |> Maybe.withDefault NotAsked
 
 
-getQuestionMaybe : NamespaceAndQuestionCode -> Store -> Maybe QuestionV2
+getQuestionMaybe : NamespaceAndQuestionCode -> Store -> Maybe Question
 getQuestionMaybe questionCode store =
     getQuestion questionCode store
         |> RemoteData.toMaybe

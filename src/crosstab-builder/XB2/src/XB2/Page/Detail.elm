@@ -170,9 +170,9 @@ import XB2.Share.Data.Labels
         , LocationCodeTag
         , NamespaceAndQuestionCode
         , NamespaceAndQuestionCodeTag
+        , Question
         , QuestionAndDatapointCode
         , QuestionAndDatapointCodeTag
-        , QuestionV2
         , Wave
         , WaveCodeTag
         )
@@ -2347,7 +2347,7 @@ trackItemsAdded flags route grouping destination addedHow items model store =
                 |> Maybe.map NotificationText.typesToString
                 |> Maybe.withDefault ""
 
-        getQuestionsFromCodes : List NamespaceAndQuestionCode -> List QuestionV2
+        getQuestionsFromCodes : List NamespaceAndQuestionCode -> List Question
         getQuestionsFromCodes questionCodes =
             questionCodes
                 |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)

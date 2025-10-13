@@ -39,8 +39,8 @@ import XB2.Share.Data.Labels
         , CategoryId
         , CategoryIdTag
         , NamespaceAndQuestionCode
+        , Question
         , QuestionAveragesUnit(..)
-        , QuestionV2
         )
 import XB2.Share.Data.Labels.Category
 import XB2.Share.Data.User
@@ -110,7 +110,7 @@ dump flags model store =
         questionInfo : List NamespaceAndQuestionCode -> List String
         questionInfo questionCodes =
             let
-                questions : List QuestionV2
+                questions : List Question
                 questions =
                     questionCodes
                         |> List.filterMap (\questionCode -> XB2.Share.Store.Platform2.getQuestionMaybe questionCode store)
@@ -146,7 +146,7 @@ dump flags model store =
                             )
                         |> XB2.Share.Data.Id.dictFromList
 
-                findCategoryPaths : QuestionV2 -> List String
+                findCategoryPaths : Question -> List String
                 findCategoryPaths question =
                     question.categoryIds
                         |> List.filterMap (\categoryId -> Dict.Any.get categoryId uniqueCategoryPaths)

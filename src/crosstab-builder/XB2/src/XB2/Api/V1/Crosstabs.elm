@@ -6,6 +6,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import XB2.Data.AudienceItemId as AudienceItemId
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Nullish as Nullish
 import XB2.RemoteData.Tracked as Tracked
 import XB2.Share.Config
@@ -85,7 +86,7 @@ encodeCell cell =
 type alias Attribute =
     { questionCode : Labels.ShortQuestionCode
     , datapointCode : Labels.ShortDatapointCode
-    , maybeSuffixCode : Maybe Labels.SuffixCode
+    , maybeSuffixCode : Maybe Suffix.Code
     , namespaceCode : Namespace.Code
     }
 
@@ -99,7 +100,7 @@ encodeAttribute attribute =
         ]
             ++ (case attribute.maybeSuffixCode of
                     Just suffixCode ->
-                        [ ( "suffix_code", Id.encode suffixCode ) ]
+                        [ ( "suffix_code", Suffix.encodeCodeAsString suffixCode ) ]
 
                     Nothing ->
                         []
@@ -139,7 +140,7 @@ cellResponseDecoder =
 type alias AttributeWithIncompatibilities =
     { questionCode : Labels.ShortQuestionCode
     , datapointCode : Labels.ShortDatapointCode
-    , suffixCode : Labels.SuffixCode
+    , suffixCode : Nullish.Nullish Suffix.Code
     , namespaceCode : Namespace.Code
     , incompatibilities : AssocSet.Set Incompatibility
 
@@ -155,10 +156,16 @@ attributeWithIncompatibilitiesDecoder =
     Decode.map6 AttributeWithIncompatibilities
         (Decode.field "question_code" Id.decode)
         (Decode.field "datapoint_code" Id.decode)
-        (Decode.field "suffix_code" Id.decode)
+        (Decode.oneOf
+            [ Nullish.decodeField "suffix_code" Suffix.codeDecoder
+
+            -- Fallback in case we get `""`
+            , Decode.succeed Nullish.Undefined
+            ]
+        )
         (Decode.field "namespace_code" Namespace.codeDecoder)
         (Decode.field "incompatibilities"
-            (Decode.nullable (AssocSet.decode incompatibiliTyDecoder)
+            (Decode.nullable (AssocSet.decode incompatibilityDecoder)
                 |> Decode.map (Maybe.withDefault AssocSet.empty)
             )
         )
@@ -171,8 +178,8 @@ type alias Incompatibility =
     }
 
 
-incompatibiliTyDecoder : Decode.Decoder Incompatibility
-incompatibiliTyDecoder =
+incompatibilityDecoder : Decode.Decoder Incompatibility
+incompatibilityDecoder =
     Decode.map2 Incompatibility
         (Decode.field "location_code" Id.decode)
         (Decode.field "wave_codes"

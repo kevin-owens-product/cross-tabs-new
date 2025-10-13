@@ -1454,7 +1454,7 @@ mockAverageItem title seed =
         , name = title
         , fullName = title
         , subtitle = ""
-        , definition = Average <| Average.AvgWithoutSuffixes XB2.Share.Factory.Question.mock.code
+        , definition = Average <| Average.AvgWithoutSuffixes XB2.Share.Factory.Question.mock.longCode
         }
         seed
         |> Tuple.mapFirst

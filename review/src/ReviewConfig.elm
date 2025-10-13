@@ -98,11 +98,8 @@ config =
         |> List.map
             (Rule.ignoreErrorsForDirectories
                 [ "src/crosstab-builder/XB2/src/XB2/Data/Zod"
+                , "src/crosstab-builder/XB2/src/XB2/Utils"
                 ]
-            )
-        |> List.map
-            (Rule.ignoreErrorsForFiles
-                [ "src/crosstab-builder/XB2/src/XB2/Utils/Debug.elm" ]
             )
 
 

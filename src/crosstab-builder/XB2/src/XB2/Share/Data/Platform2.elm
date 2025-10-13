@@ -66,6 +66,7 @@ import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.Audience.Flag as AudienceFlag
 import XB2.Data.Audience.Folder as AudienceFolder
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
 import XB2.Share.Data.Auth as Auth
@@ -77,7 +78,6 @@ import XB2.Share.Data.Labels
         , NamespaceLineage
         , ShortDatapointCode
         , ShortQuestionCode
-        , SuffixCode
         , WaveCode
         )
 import XB2.Share.Gwi.Http exposing (HttpCmd)
@@ -215,7 +215,7 @@ type alias CompatibilitiesMetadata =
 type alias AttributeCodes =
     { datapointCode : ShortDatapointCode
     , questionCode : ShortQuestionCode
-    , suffixCode : Maybe SuffixCode
+    , suffixCode : Maybe Suffix.Code
     }
 
 
@@ -223,7 +223,7 @@ attributeToString : Attribute -> String
 attributeToString { codes } =
     [ Id.unwrap codes.questionCode
     , Id.unwrap codes.datapointCode
-    , Maybe.unwrap "" Id.unwrap codes.suffixCode
+    , Maybe.unwrap "" Suffix.codeToString codes.suffixCode
     ]
         |> String.join "--"
 
@@ -272,7 +272,7 @@ encodeAttribute { isStaged, isCalculated } attr =
             , ( "question_code", Id.encode attr.codes.questionCode )
             , ( "datapoint_code", Id.encode attr.codes.datapointCode )
             , ( "suffix_code"
-              , Maybe.unwrap (Encode.string "") Id.encode attr.codes.suffixCode
+              , Maybe.unwrap (Encode.string "") Suffix.encodeCodeAsString attr.codes.suffixCode
               )
             , ( "question_description"
               , Maybe.unwrap Encode.null Encode.string attr.questionDescription
@@ -308,7 +308,7 @@ encodeUnwrappedAttribute attr =
         , ( "question_code", Id.encode attr.codes.questionCode )
         , ( "datapoint_code", Id.encode attr.codes.datapointCode )
         , ( "suffix_code"
-          , Maybe.unwrap (Encode.string "") Id.encode attr.codes.suffixCode
+          , Maybe.unwrap (Encode.string "") Suffix.encodeCodeAsString attr.codes.suffixCode
           )
         , ( "question_description"
           , Maybe.unwrap Encode.null Encode.string attr.questionDescription
@@ -446,12 +446,11 @@ attributeCodesDecoder =
         |> Decode.andMap (Decode.field "question_code" Id.decode)
         |> Decode.andMap
             (Decode.optionalField "suffix_code" Decode.string
-                |> Decode.map (Maybe.andThen (emptyStringAsNothing Id.fromString))
+                |> Decode.map (Maybe.andThen Suffix.codeFromString)
             )
 
 
 
--- Insight Categories
 -- Datasets
 
 

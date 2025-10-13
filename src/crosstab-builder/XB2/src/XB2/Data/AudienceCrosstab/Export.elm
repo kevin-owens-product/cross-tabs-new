@@ -43,8 +43,8 @@ import XB2.Share.Data.Labels
     exposing
         ( Location
         , NamespaceAndQuestionCodeTag
+        , Question
         , QuestionAveragesUnit(..)
-        , QuestionV2
         , Wave
         )
 import XB2.Share.Data.Platform2.Export
@@ -120,7 +120,7 @@ type alias ExportData =
         }
 
 
-toHeaderData : IdDict NamespaceAndQuestionCodeTag QuestionV2 -> AudienceItem -> HeaderData
+toHeaderData : IdDict NamespaceAndQuestionCodeTag Question -> AudienceItem -> HeaderData
 toHeaderData questions item =
     let
         questionNames =
@@ -282,7 +282,7 @@ encodeMultipleBases list_ =
         ]
 
 
-exportResult : Maybe SortConfig -> ACrosstab.AudienceCrosstab -> BaseAudience -> Maybe Metric -> IdDict NamespaceAndQuestionCodeTag QuestionV2 -> Maybe ExportResult
+exportResult : Maybe SortConfig -> ACrosstab.AudienceCrosstab -> BaseAudience -> Maybe Metric -> IdDict NamespaceAndQuestionCodeTag Question -> Maybe ExportResult
 exportResult sortConfig_ audienceCrosstab_ baseAudience heatmapMetric questions =
     let
         sortIfNeeded : ACrosstab.AudienceCrosstab -> ACrosstab.AudienceCrosstab

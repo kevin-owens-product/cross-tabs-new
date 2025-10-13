@@ -10,6 +10,7 @@ import Json.Encode as Encode
 import WeakCss
 import XB2.Data.Audience.Expression as Expression
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Share.Config as Config
 import XB2.Share.Config.Main as MainConfig
 import XB2.Share.Data.Id as Id
@@ -24,7 +25,7 @@ type alias ExpressionAttribute =
     , order : Float
     , questionDescription : Maybe String
     , questionLabel : String
-    , suffixCode : Maybe Labels.SuffixCode
+    , suffixCode : Maybe Suffix.Code
     , suffixLabel : Maybe String
     }
 
@@ -56,7 +57,7 @@ expressionAttributeDecoder =
         |> Decode.andMap (Decode.field "question_label" Decode.string)
         |> Decode.andMap
             (Decode.optionalField "suffix_code" Decode.string
-                |> Decode.map (Maybe.andThen (emptyStringAsNothing Id.fromString))
+                |> Decode.map (Maybe.andThen Suffix.codeFromString)
             )
         |> Decode.andMap
             (Decode.optionalNullableField "suffix_label" Decode.string

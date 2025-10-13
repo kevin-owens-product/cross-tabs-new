@@ -72,6 +72,7 @@ import XB2.Data.Calc.AudienceIntersect as AudienceIntersect
         )
 import XB2.Data.Calc.Average as Average exposing (AverageResult)
 import XB2.Data.Caption as Caption
+import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Nullish as Nullish
 import XB2.Data.Zod.Optional as Optional
 import XB2.RemoteData.Tracked as Tracked exposing (RemoteData(..))
@@ -84,9 +85,8 @@ import XB2.Share.Data.Labels
     exposing
         ( Location
         , LocationCodeTag
+        , Question
         , QuestionAveragesUnit(..)
-        , QuestionV2
-        , SuffixCode
         , Wave
         , WaveCodeTag
         )
@@ -1981,7 +1981,7 @@ sendAverageRequest :
     AverageRequestData
     -> Config msg afterAction
     -> Flags
-    -> QuestionV2
+    -> Question
     -> BaseAudience
     -> IdSet LocationCodeTag
     -> IdSet WaveCodeTag
@@ -2332,7 +2332,7 @@ sendIncompatibilitiesBulkRequest params resolveArgs =
                         ( namespace, qCode ) =
                             XB2.Share.Data.Labels.splitQuestionCode leaf.namespaceAndQuestionCode
 
-                        maybeFirstSuffixCode : Maybe SuffixCode
+                        maybeFirstSuffixCode : Maybe Suffix.Code
                         maybeFirstSuffixCode =
                             Optional.map NonemptyList.head leaf.suffixCodes
                                 |> Optional.toMaybe
@@ -2344,7 +2344,8 @@ sendIncompatibilitiesBulkRequest params resolveArgs =
                                 datapointCode =
                                     {- Fix for the waves question code, datapoint for
                                        "waves" questions has the question code as a prefix
-                                       for some reason.
+                                       for some reason. E.g. "waves" & "q1_2024"
+                                       datapoint (Q1 of 2024).
                                     -}
                                     if XB2.Share.Data.Id.unwrap qCode == "waves" then
                                         XB2.Share.Data.Id.fromString (XB2.Share.Data.Id.unwrap dtpCode)
@@ -2391,7 +2392,7 @@ resolveAverageRequest :
     -> (QuestionAveragesUnit -> data)
     -> XB2.Share.Store.Platform2.Store
     -> (data -> RemoteData (Error err) a -> Msg)
-    -> (QuestionV2 -> data -> Cmd msg)
+    -> (Question -> data -> Cmd msg)
     -> AverageRequestStatus msg
 resolveAverageRequest config average getData p2Store failCmd createCmd =
     let

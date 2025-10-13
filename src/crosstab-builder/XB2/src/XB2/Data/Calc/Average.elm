@@ -15,6 +15,8 @@ import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.Average exposing (Average(..))
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Calc.AudienceIntersect as AudienceIntersect {- TODO what about our own error type? -} exposing (XBQueryError)
+import XB2.Data.Suffix as Suffix
+import XB2.Data.Zod.Nullish as Nullish
 import XB2.RemoteData.Tracked exposing (TrackerId)
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
@@ -23,10 +25,9 @@ import XB2.Share.Data.Id
 import XB2.Share.Data.Labels
     exposing
         ( LocationCode
+        , Question
         , QuestionAndDatapointCode
         , QuestionAveragesUnit
-        , QuestionV2
-        , SuffixCode
         , WaveCode
         )
 import XB2.Share.Gwi.Http exposing (HttpCmd)
@@ -48,13 +49,13 @@ namespace =
     "/v2/query"
 
 
-extractCodesWithMidpoints : List XB2.Share.Data.Labels.Suffix -> List SuffixCode
+extractCodesWithMidpoints : List Suffix.Suffix -> List Suffix.Code
 extractCodesWithMidpoints suffixes =
-    List.filterMap (\{ code, midpoint } -> Maybe.map (\_ -> code) midpoint) suffixes
+    List.filterMap (\{ code, midpoint } -> Maybe.map (\_ -> code) (Nullish.toMaybe midpoint)) suffixes
 
 
 encode :
-    QuestionV2
+    Question
     -> Maybe BaseAudience
     -> Maybe Expression
     -> List LocationCode
@@ -95,7 +96,7 @@ encode question baseAudience maybeAudience locationCodes waveCodes average =
 
         AvgWithSuffixes questionCode datapointCode ->
             let
-                suffixCodes : List SuffixCode
+                suffixCodes : List Suffix.Code
                 suffixCodes =
                     question.suffixes
                         |> Maybe.map
@@ -110,7 +111,7 @@ encode question baseAudience maybeAudience locationCodes waveCodes average =
             else
                 [ ( "question", XB2.Share.Data.Id.encode questionCode )
                 , ( "datapoints", Encode.list XB2.Share.Data.Id.encode [ datapointCode ] )
-                , ( "suffixes", Encode.list XB2.Share.Data.Id.encode suffixCodes )
+                , ( "suffixes", Encode.list Suffix.encodeCodeAsString suffixCodes )
                 , ( "audience", Maybe.unwrap Encode.null Expression.encode maybeAudience )
                 , ( "locations", Encode.list XB2.Share.Data.Id.encode locationCodes )
                 , ( "waves", Encode.list XB2.Share.Data.Id.encode waveCodes )
@@ -122,7 +123,7 @@ encode question baseAudience maybeAudience locationCodes waveCodes average =
 
 request :
     Flags
-    -> QuestionV2
+    -> Question
     -> Maybe BaseAudience
     -> List LocationCode
     -> List WaveCode

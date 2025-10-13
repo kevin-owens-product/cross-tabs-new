@@ -70,6 +70,7 @@ import XB2.Data.AudienceItem
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Data.UndoEvent as UndoEvent
 import XB2.Data.Zod.Optional as Optional
 import XB2.Modal.GroupingPanel as XB2GroupingPanel
@@ -84,7 +85,7 @@ import XB2.Share.Data.Labels
         , NamespaceAndQuestionCode
         , NamespaceAndQuestionCodeTag
         , NamespaceLineage
-        , QuestionV2
+        , Question
         , Wave
         , WaveCodeTag
         )
@@ -153,12 +154,12 @@ logicOperatorToGrouping logicOperator =
             Or
 
 
-expressionToSelectedItem : { maybeFirstGroupTitle : Maybe String, questions : IdDict NamespaceAndQuestionCodeTag (WebData QuestionV2) } -> Expression.Expression -> SelectedItem
+expressionToSelectedItem : { maybeFirstGroupTitle : Maybe String, questions : IdDict NamespaceAndQuestionCodeTag (WebData Question) } -> Expression.Expression -> SelectedItem
 expressionToSelectedItem options expression =
     case expression of
         Expression.FirstLevelLeaf leafData ->
             let
-                possibleDatapointCodeAndSuffixCodeCombinations : NonEmpty ( XB2.Share.Data.Labels.QuestionAndDatapointCode, Maybe XB2.Share.Data.Labels.SuffixCode )
+                possibleDatapointCodeAndSuffixCodeCombinations : NonEmpty ( XB2.Share.Data.Labels.QuestionAndDatapointCode, Maybe Suffix.Code )
                 possibleDatapointCodeAndSuffixCodeCombinations =
                     case leafData.suffixCodes of
                         Optional.Present suffixCodes ->
@@ -325,12 +326,12 @@ expressionToSelectedItem options expression =
                 }
 
 
-expressionHelpToSelectedItemsGroup : { maybeFirstGroupTitle : Maybe String, questions : IdDict NamespaceAndQuestionCodeTag (WebData QuestionV2) } -> Expression.ExpressionHelp -> SelectedItemsGroup
+expressionHelpToSelectedItemsGroup : { maybeFirstGroupTitle : Maybe String, questions : IdDict NamespaceAndQuestionCodeTag (WebData Question) } -> Expression.ExpressionHelp -> SelectedItemsGroup
 expressionHelpToSelectedItemsGroup options expressionHelp =
     case expressionHelp of
         Expression.Leaf leafData ->
             let
-                possibleDatapointCodeAndSuffixCodeCombinations : NonEmpty ( XB2.Share.Data.Labels.QuestionAndDatapointCode, Maybe XB2.Share.Data.Labels.SuffixCode )
+                possibleDatapointCodeAndSuffixCodeCombinations : NonEmpty ( XB2.Share.Data.Labels.QuestionAndDatapointCode, Maybe Suffix.Code )
                 possibleDatapointCodeAndSuffixCodeCombinations =
                     case leafData.suffixCodes of
                         Optional.Present suffixCodes ->
@@ -1315,7 +1316,7 @@ update config route flags store msg model =
                                 |> (\almostCode ->
                                         almostCode
                                             ++ Maybe.unwrap ""
-                                                (XB2.Share.Data.Id.unwrap
+                                                (Suffix.codeToString
                                                     >> (++) XB2.Share.Data.Labels.p2Separator
                                                 )
                                                 attr.codes.suffixCode
@@ -1415,7 +1416,7 @@ update config route flags store msg model =
                                 |> (\almostCode ->
                                         almostCode
                                             ++ Maybe.unwrap ""
-                                                (XB2.Share.Data.Id.unwrap
+                                                (Suffix.codeToString
                                                     >> (++) XB2.Share.Data.Labels.p2Separator
                                                 )
                                                 attr.codes.suffixCode

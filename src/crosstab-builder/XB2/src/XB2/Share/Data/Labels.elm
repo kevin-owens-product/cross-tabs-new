@@ -15,16 +15,12 @@ module XB2.Share.Data.Labels exposing
     , QuestionAndDatapointCode
     , QuestionAndDatapointCodeTag
     , QuestionAveragesUnit(..)
-    , QuestionV2
     , Region
     , RegionCode(..)
     , ShortDatapointCode
     , ShortDatapointCodeTag
     , ShortQuestionCode
     , ShortQuestionCodeTag
-    , Suffix
-    , SuffixCode
-    , SuffixCodeTag
     , Wave
     , WaveCode
     , WaveCodeTag
@@ -77,6 +73,7 @@ import Time exposing (Month(..), Posix)
 import Time.Extra as Time
 import Url.Builder
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
 import XB2.Share.Data.Auth as Auth
@@ -152,39 +149,13 @@ encodeAveragesUnit unit =
 
 
 type alias Question =
-    { code : NamespaceAndQuestionCode
-    , namespaceCode : Namespace.Code
-    , name : String
-    , fullName : String
-    , categoryIds : List CategoryId
-    , suffixes : Maybe (NonEmpty Suffix)
-    , message : Maybe String
-
-    {- TODO remove locationCodes after we start using
-       /questions/:id/compatibilities
-    -}
-    , locationCodes : List LocationCode
-    , accessible : Bool
-    , notice : Maybe String
-    , averagesUnit : Maybe QuestionAveragesUnit
-    , warning : Maybe String
-    , knowledgeBase : Maybe String
-
-    {- Made last because we have two decoders that only differ in this field.
-       So they can reuse one common base.
-    -}
-    , datapoints : NonEmpty Datapoint
-    }
-
-
-type alias QuestionV2 =
     { code : ShortQuestionCode
     , longCode : NamespaceAndQuestionCode
     , namespaceCode : Namespace.Code
     , name : String
     , fullName : String
     , categoryIds : List CategoryId
-    , suffixes : Maybe (NonEmpty Suffix)
+    , suffixes : Maybe (NonEmpty Suffix.Suffix)
     , message : Maybe String
     , accessible : Bool
     , notice : Maybe String
@@ -200,7 +171,7 @@ type alias QuestionV2 =
     }
 
 
-getQuestionV2 : NamespaceAndQuestionCode -> Flags -> HttpCmd Never QuestionV2
+getQuestionV2 : NamespaceAndQuestionCode -> Flags -> HttpCmd Never Question
 getQuestionV2 namespaceAndQuestionCode flags =
     Http.request
         { method = "GET"
@@ -230,7 +201,7 @@ parseNamespaceCode code =
             Namespace.codeFromString h
 
 
-questionV2Decoder : NamespaceAndQuestionCode -> Decode.Decoder QuestionV2
+questionV2Decoder : NamespaceAndQuestionCode -> Decode.Decoder Question
 questionV2Decoder wantedQuestionCode =
     let
         ( _, wantedShortQuestionCode ) =
@@ -311,7 +282,7 @@ questionV2Decoder wantedQuestionCode =
         |> Decode.andMap (Decode.at [ "question", "name" ] Decode.string)
         |> Decode.andMap (Decode.at [ "question", "description" ] Decode.string)
         |> Decode.andMap (Decode.at [ "question", "categories" ] (Decode.list v2CategoryIdDecoder))
-        |> Decode.andMap (Decode.maybe (Decode.at [ "question", "suffixes" ] (NonemptyList.decodeList suffixDecoder)))
+        |> Decode.andMap (Decode.maybe (Decode.at [ "question", "suffixes" ] (NonemptyList.decodeList Suffix.decoder)))
         |> Decode.andMap (Decode.maybe (Decode.at [ "question", "message" ] Decode.string))
         |> Decode.andMap
             -- TODO perhaps this will get fixed later in ATC-3037
@@ -635,40 +606,6 @@ groupToRegion locations =
 
 
 
--- SUFFIXES
-
-
-type SuffixCodeTag
-    = SuffixCodeTag
-
-
-type alias SuffixCode =
-    Id SuffixCodeTag
-
-
-type alias Suffix =
-    { code : SuffixCode
-    , name : String
-    , midpoint : Maybe Float
-    }
-
-
-suffixDecoder : Decoder Suffix
-suffixDecoder =
-    Decode.succeed Suffix
-        |> Decode.andMap
-            (Decode.oneOf
-                -- TODO keeping this "id" just in case but it's probably not needed.
-                -- After other id->code changes look at this again.
-                [ Decode.field "code" XB2.Share.Data.Id.decode
-                , Decode.field "id" XB2.Share.Data.Id.decodeFromInt
-                ]
-            )
-        |> Decode.andMap (Decode.field "name" Decode.string)
-        |> Decode.andMap (Decode.optionalNullableField "midpoint" Decode.float)
-
-
-
 -- WAVES
 
 
@@ -926,7 +863,7 @@ splitQuestionAndDatapointCodeCheckingWavesQuestion questionAndDatapointCode ques
         splitQuestionAndDatapointCode questionAndDatapointCode
 
 
-addQuestionToDatapointCode : ShortQuestionCode -> DatapointAndSuffixCode -> ( QuestionAndDatapointCode, Maybe SuffixCode )
+addQuestionToDatapointCode : ShortQuestionCode -> DatapointAndSuffixCode -> ( QuestionAndDatapointCode, Maybe Suffix.Code )
 addQuestionToDatapointCode questionCode dpAndSuffixCode =
     let
         questionCode_ : String
@@ -945,7 +882,8 @@ addQuestionToDatapointCode questionCode dpAndSuffixCode =
             case String.split "_" dpAndSuffixCode_ of
                 [ shortDpCode, suffixCode ] ->
                     ( XB2.Share.Data.Id.fromString <| questionCode_ ++ "_" ++ shortDpCode
-                    , Just <| XB2.Share.Data.Id.fromString suffixCode
+                      -- TODO: Converting to String makes us lose the type safety of Suffix.Code
+                    , Suffix.codeFromString suffixCode
                     )
 
                 _ ->
@@ -954,7 +892,7 @@ addQuestionToDatapointCode questionCode dpAndSuffixCode =
                     )
 
 
-addSuffixToDatapointCode : ShortQuestionCode -> Maybe SuffixCode -> QuestionAndDatapointCode -> DatapointAndSuffixCode
+addSuffixToDatapointCode : ShortQuestionCode -> Maybe Suffix.Code -> QuestionAndDatapointCode -> DatapointAndSuffixCode
 addSuffixToDatapointCode shortQuestionCode maybeSuffixCode questionAndDatapointCode =
     let
         questionAndDatapointCode_ : String
@@ -974,7 +912,7 @@ addSuffixToDatapointCode shortQuestionCode maybeSuffixCode questionAndDatapointC
                             XB2.Share.Data.Id.fromString shortDatapointCode
 
                         Just suffixCode ->
-                            XB2.Share.Data.Id.fromString <| shortDatapointCode ++ "_" ++ XB2.Share.Data.Id.unwrap suffixCode
+                            XB2.Share.Data.Id.fromString <| shortDatapointCode ++ "_" ++ Suffix.codeToString suffixCode
 
                 _ ->
                     -- weird

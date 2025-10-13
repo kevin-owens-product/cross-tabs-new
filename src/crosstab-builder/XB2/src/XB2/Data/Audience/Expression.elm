@@ -20,6 +20,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List.NonEmpty as NonEmpty
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Optional as Optional
 import XB2.Share.Data.Id as Id
 import XB2.Share.Data.Labels as Labels
@@ -252,7 +253,7 @@ type alias LeafData =
        { "question": "q1", "datapoints": ["q1_2"], "suffixes": [2] }
     -}
     -- 'suffixes'
-    , suffixCodes : Optional.Optional (NonEmpty.NonEmpty Labels.SuffixCode)
+    , suffixCodes : Optional.Optional (NonEmpty.NonEmpty Suffix.Code)
 
     -- Is the attribute included or excluded from the audience?
     -- 'not'
@@ -273,7 +274,8 @@ encodeLeafData leafData =
             [ ( "min_count", Optional.map Encode.int leafData.minCount )
             , ( "not", Optional.map Encode.bool leafData.isExcluded )
             , ( "suffixes"
-              , Optional.map (NonEmpty.encodeList Id.encode) leafData.suffixCodes
+              , Optional.map (NonEmpty.encodeList Suffix.encodeCodeAsString)
+                    leafData.suffixCodes
               )
             ]
         |> Encode.object
@@ -288,7 +290,7 @@ leafDataDecoder =
             , Decode.field "options" (NonEmpty.decodeList Id.decode)
             ]
         )
-        (Optional.decodeField "suffixes" (NonEmpty.decodeList Id.decodeFromStringOrInt))
+        (Optional.decodeField "suffixes" (NonEmpty.decodeList Suffix.codeDecoder))
         (Optional.decodeField "not" Decode.bool)
         (Optional.decodeField "min_count" Decode.int)
 

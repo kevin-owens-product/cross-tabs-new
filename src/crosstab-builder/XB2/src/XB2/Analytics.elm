@@ -45,6 +45,7 @@ import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Crosstab as Crosstab
 import XB2.Data.Metric as Metric exposing (Metric(..))
 import XB2.Data.MetricsTransposition exposing (MetricsTransposition, metricAnalyticsName)
+import XB2.Data.Suffix as Suffix
 import XB2.Data.UndoEvent as UndoEvent exposing (UndoEvent)
 import XB2.Data.Zod.Optional as Optional
 import XB2.Detail.Common as Common exposing (Unsaved(..))
@@ -64,8 +65,8 @@ import XB2.Share.Data.Labels
     exposing
         ( Location
         , NamespaceAndQuestionCode
+        , Question
         , QuestionAndDatapointCode
-        , QuestionV2
         , Wave
         )
 import XB2.Share.Gwi.Http exposing (Error)
@@ -187,7 +188,7 @@ type Event
         , itemType : String
         , audienceId : Maybe Audience.Id
         , cellsCount : Int
-        , questions : List QuestionV2
+        , questions : List Question
         , datapointCodes : List QuestionAndDatapointCode
         , itemLabel : String
         , datasetNames : List String
@@ -252,7 +253,7 @@ type Event
             , datasetNames : List String
             }
         )
-    | ProjectSaved (ProjectEventParams { newlyCreated : Bool, questions : List QuestionV2 })
+    | ProjectSaved (ProjectEventParams { newlyCreated : Bool, questions : List Question })
     | ProjectDuplicated (ProjectEventParams { originalProject : XBProjectFullyLoaded })
     | ProjectDeleted (ProjectEventParams {})
     | HeaderCollapsed (EventParams { isHeaderCollapsed : Bool })
@@ -260,7 +261,7 @@ type Event
     | ProjectRenamed (ProjectEventParams {})
     | ProjectOpened (ProjectEventParams {})
     | UnsavedProjectOpened (UnsavedProjectEventParams {})
-    | ProjectShared (ProjectEventParams { questions : List QuestionV2 })
+    | ProjectShared (ProjectEventParams { questions : List Question })
     | Export ExportData
     | GroupRenamed
         (EventParams
@@ -1835,7 +1836,7 @@ analyticsFriendlyExpression =
                     ++ (case leafData.suffixCodes of
                             Optional.Present suffixCodes ->
                                 ",sfxs:"
-                                    ++ commaSeparatedString XB2.Share.Data.Id.unwrap (NonemptyList.toList suffixCodes)
+                                    ++ commaSeparatedString Suffix.codeToString (NonemptyList.toList suffixCodes)
 
                             Optional.Undefined ->
                                 ""
