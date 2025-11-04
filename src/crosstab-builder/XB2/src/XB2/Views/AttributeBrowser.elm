@@ -26,6 +26,7 @@ import List.NonEmpty as NonEmpty exposing (NonEmpty)
 import Maybe.Extra as Maybe
 import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.Caption as Caption exposing (Caption)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Data.Zod.Optional as Optional
 import XB2.Share.Config exposing (Flags)
@@ -45,7 +46,6 @@ import XB2.Share.Data.Labels
 import XB2.Share.Data.Platform2
     exposing
         ( Attribute
-        , Dataset
         )
 
 
@@ -70,7 +70,7 @@ type alias Config msg =
     , canUseAverage : Bool
     , selectedAttributes : List Attribute
     , selectedAverages : List Average
-    , selectedDatasets : List Dataset
+    , selectedDatasets : List Dataset.Dataset
 
     -- metadata modal
     , prerequestedAttribute : Maybe Attribute
@@ -164,32 +164,60 @@ type ItemType
 getXBItemFromAttribute :
     Attribute
     -> XBItem
-getXBItemFromAttribute { codes, isExcluded, questionName, suffixName, datapointName, namespaceCode } =
+getXBItemFromAttribute attribute =
+    let
+        firstDatasetInTaxonomyPaths =
+            case attribute.taxonomyPaths of
+                Nothing ->
+                    Optional.Undefined
+
+                Just [] ->
+                    Optional.Undefined
+
+                Just (first :: _) ->
+                    {- We only care about the first dataset in the taxonomy paths,
+                       which is where the attribute comes from.
+                    -}
+                    Optional.fromMaybe first.dataset
+
+        metadata =
+            case attribute.metadata of
+                Just meta ->
+                    Optional.Present meta
+
+                Nothing ->
+                    Optional.map
+                        (\dataset ->
+                            { dataset = dataset }
+                        )
+                        firstDatasetInTaxonomyPaths
+    in
     { caption =
         Caption.fromDatapoint
-            { question = questionName
-            , datapoint = Just datapointName
-            , suffix = suffixName
-            , isExcluded = isExcluded
+            { question = attribute.questionName
+            , datapoint = Just attribute.datapointName
+            , suffix = attribute.suffixName
+            , isExcluded = attribute.isExcluded
             }
     , expression =
         Expression.FirstLevelLeaf
-            { isExcluded = Optional.Present isExcluded
+            { isExcluded = Optional.Present attribute.isExcluded
             , minCount = Optional.Present 1
             , namespaceAndQuestionCode =
                 XB2.Share.Data.Labels.addNamespaceToQuestionCode
-                    namespaceCode
-                    codes.questionCode
+                    attribute.namespaceCode
+                    attribute.codes.questionCode
             , questionAndDatapointCodes =
                 NonEmpty.singleton
                     (XB2.Share.Data.Labels.addQuestionToShortDatapointCode
-                        codes.questionCode
-                        codes.datapointCode
+                        attribute.codes.questionCode
+                        attribute.codes.datapointCode
                     )
             , suffixCodes =
                 Maybe.unwrap Optional.Undefined
                     (NonEmpty.singleton >> Optional.Present)
-                    codes.suffixCode
+                    attribute.codes.suffixCode
+            , metadata = metadata
             }
     , itemType = AttributeItem
     }
@@ -392,7 +420,7 @@ view flags config initialState shouldPassInitialState =
             config.selectedDatasets
                 |> Encode.list
                     (\dataset ->
-                        XB2.Share.Data.Platform2.encodeDatasetForWebcomponent dataset
+                        Dataset.encodeForWebcomponent dataset
                     )
                 |> Encode.encode 0
 

@@ -17,6 +17,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra as Decode
 import Json.Encode as Encode exposing (Value)
 import RemoteData exposing (WebData)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Share.Data.Id
 import XB2.Share.Data.Labels
@@ -25,7 +26,7 @@ import XB2.Share.Data.Labels
         , NamespaceLineage
         , QuestionAndDatapointCode
         )
-import XB2.Share.Data.Platform2 exposing (DatasetCode)
+import XB2.Share.Data.Platform2
 
 
 type Average
@@ -145,7 +146,11 @@ encodeAverageTimeFormat format =
                 "float"
 
 
-getDatasets : BiDict DatasetCode Namespace.Code -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage) -> Average -> WebData (List DatasetCode)
+getDatasets :
+    BiDict Dataset.Code Namespace.Code
+    -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
+    -> Average
+    -> WebData (List Dataset.Code)
 getDatasets datasetsToNamespaces lineages average =
     getQuestionCode average
         |> XB2.Share.Data.Labels.parseNamespaceCode

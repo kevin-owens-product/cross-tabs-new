@@ -139,6 +139,7 @@ import XB2.Data.Calc.AudienceIntersect as AudienceIntersect
         )
 import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Crosstab as Crosstab
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Metric exposing (Metric)
 import XB2.Data.MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
@@ -1933,7 +1934,7 @@ onP2StoreError config flags newP2Store =
             )
 
 
-getDatasetCodesFromAudienceExpression : XB2.Share.Store.Platform2.Store -> Expression -> List XB2.Share.Data.Platform2.DatasetCode
+getDatasetCodesFromAudienceExpression : XB2.Share.Store.Platform2.Store -> Expression -> List Dataset.Code
 getDatasetCodesFromAudienceExpression store expression =
     store.datasetsToNamespaces
         |> RemoteData.unwrap []
@@ -1989,9 +1990,19 @@ trackBaseEdited flags route counts newExpression p2Store model =
         model
 
 
-getDatasetNamesFromCodes : XB2.Share.Store.Platform2.Store -> List XB2.Share.Data.Platform2.DatasetCode -> List String
-getDatasetNamesFromCodes store =
-    Store.getByIds store.datasets >> List.map .name
+getDatasetNamesFromCodes :
+    XB2.Share.Store.Platform2.Store
+    -> List Dataset.Code
+    -> List String
+getDatasetNamesFromCodes store datasetCodes =
+    (case store.datasets of
+        RemoteData.Success datasetStore ->
+            List.filterMap (\datasetCode -> Dict.Any.get datasetCode datasetStore) datasetCodes
+
+        _ ->
+            []
+    )
+        |> List.map .name
 
 
 countAddedItems : SelectedItems -> Analytics.Counts

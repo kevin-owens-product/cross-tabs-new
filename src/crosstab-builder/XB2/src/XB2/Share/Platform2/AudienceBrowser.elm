@@ -13,14 +13,10 @@ import Json.Encode as Encode
 import Set.Any
 import XB2.Data.Audience as Audience
 import XB2.Data.Audience.Folder as AudienceFolder
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main exposing (Uri)
-import XB2.Share.Data.Id
-import XB2.Share.Data.Platform2
-    exposing
-        ( Dataset
-        )
 import XB2.Share.Data.User
 
 
@@ -36,7 +32,7 @@ type alias Config msg =
     , stagedAudiences : List Audience.Audience
     , isBase : Bool
     , setDecodingError : String -> msg
-    , allDatasets : List Dataset
+    , allDatasets : List Dataset.Dataset
     , compatibleNamespaces : List Namespace.Code
     , appName : String
     , hideMyAudiencesTab : Bool
@@ -117,8 +113,8 @@ view flags config audienceFolders =
                 |> Encode.list
                     (\dataset ->
                         Encode.list identity
-                            [ XB2.Share.Data.Id.encode dataset.code
-                            , XB2.Share.Data.Platform2.encodeDatasetForWebcomponent dataset
+                            [ Dataset.encodeCode dataset.code
+                            , Dataset.encodeForWebcomponent dataset
                             ]
                     )
                 |> Encode.encode 0

@@ -8,6 +8,7 @@ module XB2.Share.Store.Utils exposing
     , getByIds
     , getByIdsIfAllDone
     , getByIdsIfAllLoaded
+    , getFromAnyDict
     , insertResource
     , modify
     , peek
@@ -32,6 +33,11 @@ import XB2.Share.Gwi.Http exposing (Error, HttpCmd)
 get : WebData (IdDict tag a) -> Id tag -> Maybe a
 get state id =
     Maybe.andThen (Dict.Any.get id) <| RemoteData.toMaybe state
+
+
+getFromAnyDict : WebData (Dict.Any.AnyDict comparable k v) -> k -> Maybe v
+getFromAnyDict state key =
+    Maybe.andThen (Dict.Any.get key) <| RemoteData.toMaybe state
 
 
 getByIds : WebData (IdDict tag a) -> List (Id tag) -> List a

@@ -47,6 +47,7 @@ import Set.Any
 import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.AudienceItemId as AudienceItemId exposing (AudienceItemId)
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Metric exposing (Metric(..))
 import XB2.Data.Namespace as Namespace
 import XB2.RemoteData.Tracked as Tracked exposing (TrackerId)
@@ -323,7 +324,7 @@ xbQueryErrorDisplay err =
 
 
 type DatasetsZipperItem
-    = DItem XB2.Share.Data.Platform2.Dataset
+    = DItem Dataset.Dataset
     | DFolder (Maybe XB2.Share.Data.Platform2.DatasetFolder) (List DatasetsZipperItem)
 
 
@@ -347,7 +348,7 @@ xbQueryErrorString store err =
             let
                 datasets =
                     store.datasets
-                        |> RemoteData.withDefault Id.emptyDict
+                        |> RemoteData.withDefault (Dict.Any.empty Dataset.codeToString)
 
                 setTypesAndDatasetChildrens : XB2.Share.Data.Platform2.DatasetFolder -> DatasetsZipperItem
                 setTypesAndDatasetChildrens (XB2.Share.Data.Platform2.DatasetFolder folder) =
@@ -390,7 +391,7 @@ xbQueryErrorString store err =
                                         XB2.Share.Data.Platform2.datasetsForNamespace datasetsToNamespaces store.lineages namespaceCode
                                             |> RemoteData.toMaybe
                                     )
-                                |> Maybe.map (Set.Any.toList >> List.filterMap (Store.get store.datasets))
+                                |> Maybe.map (Set.Any.toList >> List.filterMap (Store.getFromAnyDict store.datasets))
                                 |> Maybe.andThen List.head
 
                         maybePath =

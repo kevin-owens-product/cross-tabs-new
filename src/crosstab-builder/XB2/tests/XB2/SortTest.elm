@@ -268,6 +268,7 @@ bases =
                 , minCount = Optional.Present 1
                 , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
                 , suffixCodes = Optional.Undefined
+                , metadata = Optional.Undefined
                 }
         }
         |> Tuple.first
@@ -284,6 +285,7 @@ bases =
                 , minCount = Optional.Present 1
                 , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
                 , suffixCodes = Optional.Undefined
+                , metadata = Optional.Undefined
                 }
         }
         |> Tuple.first

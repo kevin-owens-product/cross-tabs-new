@@ -96,6 +96,7 @@ import Time exposing (Posix)
 import Url.Builder
 import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.Average as Average exposing (Average, AverageTimeFormat)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Metric as Metric exposing (Metric)
 import XB2.Data.MetricsTransposition as MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
@@ -112,7 +113,7 @@ import XB2.Share.Data.Labels
         , NamespaceAndQuestionCode
         , WaveCode
         )
-import XB2.Share.Data.Platform2 exposing (DatasetCode, DatasetCodeTag, FullUserEmail, OrganisationId)
+import XB2.Share.Data.Platform2 exposing (FullUserEmail, OrganisationId)
 import XB2.Share.Dialog.ErrorDisplay exposing (ErrorDisplay)
 import XB2.Share.Gwi.Http exposing (HttpCmd)
 import XB2.Share.Gwi.Json.Decode as Decode exposing (intToString)
@@ -1862,15 +1863,15 @@ getProjectQuestionCodes project =
         |> unique
 
 
-getCrosstabDatasetCodes : List AudienceDefinition -> List Expression -> Store -> List DatasetCode
+getCrosstabDatasetCodes : List AudienceDefinition -> List Expression -> Store -> List Dataset.Code
 getCrosstabDatasetCodes rowsAncCols bases store =
     let
-        datasetsToNamespaces : BiDict XB2.Share.Data.Platform2.DatasetCode Namespace.Code
+        datasetsToNamespaces : BiDict Dataset.Code Namespace.Code
         datasetsToNamespaces =
             store.datasetsToNamespaces
                 |> RemoteData.withDefault BiDict.empty
 
-        datasesFromDefinitions : XB2.Share.Data.Id.IdSet DatasetCodeTag
+        datasesFromDefinitions : Set.Any.AnySet Dataset.StringifiedCode Dataset.Code
         datasesFromDefinitions =
             rowsAncCols
                 |> List.foldr
@@ -1885,18 +1886,18 @@ getCrosstabDatasetCodes rowsAncCols bases store =
                                         Average.getDatasets datasetsToNamespaces store.lineages average
                         in
                         datasetCodes
-                            |> RemoteData.withDefault [ XB2.Share.Data.Id.fromString "n/a" ]
-                            |> Set.Any.fromList XB2.Share.Data.Id.unwrap
+                            |> RemoteData.withDefault [ Dataset.naCode ]
+                            |> Set.Any.fromList Dataset.codeToString
                             |> Set.Any.union acc
                     )
-                    XB2.Share.Data.Id.emptySet
+                    (Set.Any.empty Dataset.codeToString)
     in
     bases
         |> List.foldr
             (\expr acc ->
                 XB2.Share.Data.Platform2.datasetsFromExpression datasetsToNamespaces store.lineages expr
-                    |> RemoteData.withDefault [ XB2.Share.Data.Id.fromString "n/a" ]
-                    |> Set.Any.fromList XB2.Share.Data.Id.unwrap
+                    |> RemoteData.withDefault [ Dataset.naCode ]
+                    |> Set.Any.fromList Dataset.codeToString
                     |> Set.Any.union acc
             )
             datasesFromDefinitions
@@ -1906,9 +1907,9 @@ getCrosstabDatasetCodes rowsAncCols bases store =
 getProjectDatasetNames : List AudienceDefinition -> List Expression -> Store -> List String
 getProjectDatasetNames rowsAncCols bases store =
     let
-        allDatasets : XB2.Share.Data.Id.IdDict DatasetCodeTag XB2.Share.Data.Platform2.Dataset
+        allDatasets : Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
         allDatasets =
-            RemoteData.withDefault XB2.Share.Data.Id.emptyDict store.datasets
+            RemoteData.withDefault (Dict.Any.empty Dataset.codeToString) store.datasets
     in
     getCrosstabDatasetCodes rowsAncCols bases store
         |> List.filterMap

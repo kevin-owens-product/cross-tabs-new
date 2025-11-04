@@ -69,6 +69,7 @@ import XB2.Data.AudienceCrosstab as ACrosstab exposing (AudienceCrosstab, Direct
 import XB2.Data.AudienceItem
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Caption as Caption exposing (Caption)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Data.Suffix as Suffix
 import XB2.Data.UndoEvent as UndoEvent
@@ -92,9 +93,6 @@ import XB2.Share.Data.Labels
 import XB2.Share.Data.Platform2
     exposing
         ( Attribute
-        , Dataset
-        , DatasetCode
-        , DatasetCodeTag
         )
 import XB2.Share.DragAndDrop.Move
 import XB2.Share.Gwi.List as List
@@ -232,6 +230,7 @@ expressionToSelectedItem options expression =
                         , compatibilitiesMetadata = Nothing
                         , taxonomyPaths = Nothing
                         , isExcluded = Maybe.withDefault False (Optional.toMaybe leafData.isExcluded)
+                        , metadata = Optional.toMaybe leafData.metadata
                         }
 
                 questionAndDatapointCodesAndMaybeSuffixCodes ->
@@ -292,6 +291,7 @@ expressionToSelectedItem options expression =
                                         , compatibilitiesMetadata = Nothing
                                         , taxonomyPaths = Nothing
                                         , isExcluded = Maybe.withDefault False (Optional.toMaybe leafData.isExcluded)
+                                        , metadata = Optional.toMaybe leafData.metadata
                                         }
                                 )
                                 questionAndDatapointCodesAndMaybeSuffixCodes
@@ -323,6 +323,7 @@ expressionToSelectedItem options expression =
                 , compatibilitiesMetadata = Nothing
                 , taxonomyPaths = Nothing
                 , isExcluded = False
+                , metadata = Nothing
                 }
 
 
@@ -402,6 +403,7 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
                         , compatibilitiesMetadata = Nothing
                         , taxonomyPaths = Nothing
                         , isExcluded = Maybe.withDefault False (Optional.toMaybe leafData.isExcluded)
+                        , metadata = Optional.toMaybe leafData.metadata
                         }
 
                 questionAndDatapointCodesAndMaybeSuffixCodes ->
@@ -461,6 +463,7 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
                                     , compatibilitiesMetadata = Nothing
                                     , taxonomyPaths = Nothing
                                     , isExcluded = Maybe.withDefault False (Optional.toMaybe leafData.isExcluded)
+                                    , metadata = Optional.toMaybe leafData.metadata
                                     }
                             )
                             questionAndDatapointCodesAndMaybeSuffixCodes
@@ -3050,8 +3053,8 @@ view :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3071,7 +3074,7 @@ view getGroupingPanelConfig affixedFrom flags config moduleClass selectedBasesCo
         compatibleNamespaceCodes =
             XB2.Share.Data.Labels.compatibleNamespacesWithAll lineages usedNamespaceCodes
 
-        compatibleDatasets : List Dataset
+        compatibleDatasets : List Dataset.Dataset
         compatibleDatasets =
             compatibleNamespaceCodes
                 |> RemoteData.andThen
@@ -3084,7 +3087,7 @@ view getGroupingPanelConfig affixedFrom flags config moduleClass selectedBasesCo
                             |> List.combineRemoteData
                     )
                 |> RemoteData.map
-                    (List.foldl Set.Any.union XB2.Share.Data.Id.emptySet
+                    (List.foldl Set.Any.union (Set.Any.empty Dataset.codeToString)
                         >> Set.Any.toList
                     )
                 |> RemoteData.withDefault []
@@ -3338,8 +3341,8 @@ viewMetadataModal :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3359,7 +3362,7 @@ viewMetadataModal getGroupingPanelConfig affixedFrom prerequestedAttribute flags
         compatibleNamespaceCodes =
             XB2.Share.Data.Labels.compatibleNamespacesWithAll lineages usedNamespaceCodes
 
-        compatibleDatasets : List Dataset
+        compatibleDatasets : List Dataset.Dataset
         compatibleDatasets =
             compatibleNamespaceCodes
                 |> RemoteData.andThen
@@ -3372,7 +3375,7 @@ viewMetadataModal getGroupingPanelConfig affixedFrom prerequestedAttribute flags
                             |> List.combineRemoteData
                     )
                 |> RemoteData.map
-                    (List.foldl Set.Any.union XB2.Share.Data.Id.emptySet
+                    (List.foldl Set.Any.union (Set.Any.empty Dataset.codeToString)
                         >> Set.Any.toList
                     )
                 |> RemoteData.withDefault []
@@ -3615,8 +3618,8 @@ addToTableView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3639,8 +3642,8 @@ metadataNotesView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3663,8 +3666,8 @@ affixTableView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3686,8 +3689,8 @@ editTableView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3709,8 +3712,8 @@ addBaseView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3732,8 +3735,8 @@ affixBaseView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3755,8 +3758,8 @@ editBaseView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location
@@ -3778,8 +3781,8 @@ replaceDefaultBaseView :
     -> ClassName
     -> Int
     -> Bool
-    -> IdDict DatasetCodeTag Dataset
-    -> BiDict DatasetCode Namespace.Code
+    -> Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset
+    -> BiDict Dataset.Code Namespace.Code
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> IdDict WaveCodeTag Wave
     -> IdDict LocationCodeTag Location

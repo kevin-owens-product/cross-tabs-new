@@ -3,6 +3,7 @@ module XB2.Data.Audience.Expression exposing
     , ExpressionHelp(..)
     , LeafData
     , LogicOperator(..)
+    , Metadata
     , allInternetUsersLeafData
     , append
     , decoder
@@ -12,6 +13,7 @@ module XB2.Data.Audience.Expression exposing
     , getQuestionAndDatapointCodes
     , getQuestionCodes
     , intersectionMany
+    , metadataDecoder
     , sizeExpression
     , unionMany
     )
@@ -19,6 +21,7 @@ module XB2.Data.Audience.Expression exposing
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.NonEmpty as NonEmpty
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Optional as Optional
@@ -222,6 +225,23 @@ encodeExpressionHelp expressionHelp =
                 ]
 
 
+{-| Extra data that tells us more info about the expression (e.g. from which dataset it
+comes from).
+-}
+type alias Metadata =
+    { dataset : Dataset.Dataset }
+
+
+metadataDecoder : Decode.Decoder Metadata
+metadataDecoder =
+    Decode.map Metadata (Decode.field "dataset" Dataset.decoder)
+
+
+encodeMetadata : Metadata -> Encode.Value
+encodeMetadata metadata =
+    Encode.object [ ( "dataset", Dataset.encodeForWebcomponent metadata.dataset ) ]
+
+
 type alias LeafData =
     { -- 'question'
       namespaceAndQuestionCode : Labels.NamespaceAndQuestionCode
@@ -262,6 +282,9 @@ type alias LeafData =
     -- How many datapoints must be included/excluded in the expression
     -- 'min_count'
     , minCount : Optional.Optional Int
+
+    -- Extra info about the expression
+    , metadata : Optional.Optional Metadata
     }
 
 
@@ -277,13 +300,14 @@ encodeLeafData leafData =
               , Optional.map (NonEmpty.encodeList Suffix.encodeCodeAsString)
                     leafData.suffixCodes
               )
+            , ( "metadata", Optional.map encodeMetadata leafData.metadata )
             ]
         |> Encode.object
 
 
 leafDataDecoder : Decode.Decoder LeafData
 leafDataDecoder =
-    Decode.map5 LeafData
+    Decode.map6 LeafData
         (Decode.field "question" Id.decode)
         (Decode.oneOf
             [ Decode.field "datapoints" (NonEmpty.decodeList Id.decode)
@@ -293,6 +317,7 @@ leafDataDecoder =
         (Optional.decodeField "suffixes" (NonEmpty.decodeList Suffix.codeDecoder))
         (Optional.decodeField "not" Decode.bool)
         (Optional.decodeField "min_count" Decode.int)
+        (Optional.decodeField "metadata" metadataDecoder)
 
 
 {-| This acts like an identity element in monoidal composition of audience expressions.
@@ -323,6 +348,7 @@ allInternetUsersLeafData =
     , suffixCodes = Optional.Undefined
     , isExcluded = Optional.Undefined
     , minCount = Optional.Undefined
+    , metadata = Optional.Undefined
     }
 
 

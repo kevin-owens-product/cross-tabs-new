@@ -220,6 +220,7 @@ getSelectAttribute question datapoint =
         , order = 0
         , compatibilitiesMetadata = Nothing
         , isExcluded = False
+        , metadata = Nothing
         }
 
 

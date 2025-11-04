@@ -1072,6 +1072,7 @@ notAffixedExpression =
         , minCount = Optional.Present 1
         , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
         , suffixCodes = Optional.Undefined
+        , metadata = Optional.Undefined
         }
 
 
@@ -1102,6 +1103,7 @@ diffInExpressions =
             , minCount = Optional.Present 1
             , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
             , suffixCodes = Optional.Undefined
+            , metadata = Optional.Undefined
             }
         , []
         )
@@ -1116,6 +1118,7 @@ affixedExpression =
             , minCount = Optional.Present 1
             , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
             , suffixCodes = Optional.Undefined
+            , metadata = Optional.Undefined
             }
         , [ Expression.Node Expression.Or
                 (NonEmpty.singleton <|
@@ -1125,6 +1128,7 @@ affixedExpression =
                         , minCount = Optional.Present 1
                         , namespaceAndQuestionCode = XB2.Share.Data.Id.fromString "q2"
                         , suffixCodes = Optional.Undefined
+                        , metadata = Optional.Undefined
                         }
                 )
           ]

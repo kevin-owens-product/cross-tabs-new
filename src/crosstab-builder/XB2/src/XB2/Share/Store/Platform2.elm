@@ -28,6 +28,7 @@ import RemoteData exposing (RemoteData(..), WebData)
 import XB2.Data.Audience as Audience
 import XB2.Data.Audience.Expression exposing (Expression)
 import XB2.Data.Audience.Folder as AudienceFolder
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Data.Id exposing (IdDict)
@@ -51,9 +52,6 @@ import XB2.Share.Data.Platform2
     exposing
         ( ChartFolder
         , ChartFolderIdTag
-        , Dataset
-        , DatasetCode
-        , DatasetCodeTag
         , DatasetFolder
         , Splitter
         , SplitterCodeTag
@@ -106,7 +104,7 @@ type Msg
     | WavesFetched (List Wave)
     | WavesByNamespaceFetched Namespace.Code (List Wave)
     | DatasetFoldersFetched (List DatasetFolder)
-    | DatasetsFetched (List Dataset)
+    | DatasetsFetched (List Dataset.Dataset)
     | LineageFetched Namespace.Code NamespaceLineage
 
 
@@ -136,8 +134,8 @@ type alias Store =
     , waves : WebData (IdDict WaveCodeTag Wave)
     , wavesByNamespace : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData (IdDict WaveCodeTag Wave))
     , datasetFoldersTree : WebData (List DatasetFolder)
-    , datasets : WebData (IdDict DatasetCodeTag Dataset)
-    , datasetsToNamespaces : WebData (BiDict DatasetCode Namespace.Code)
+    , datasets : WebData (Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset)
+    , datasetsToNamespaces : WebData (BiDict Dataset.Code Namespace.Code)
     , chartFolders : WebData (IdDict ChartFolderIdTag ChartFolder)
     , lineages : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     , timezones : WebData (IdDict TimezoneCodeTag Timezone)
@@ -497,7 +495,7 @@ update config msg store =
 
         DatasetsFetched datasets ->
             ( { store
-                | datasets = Store.taggedCollectionLoadedWith .code datasets
+                | datasets = Success (Store.collectionToAnyDict datasets .code Dataset.codeToString)
                 , datasetsToNamespaces =
                     datasets
                         |> List.map (\ds -> ( ds.code, ds.baseNamespaceCode ))

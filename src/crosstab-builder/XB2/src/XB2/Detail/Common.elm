@@ -36,6 +36,7 @@ import XB2.Data.AudienceCrosstab exposing (Direction(..))
 import XB2.Data.AudienceItem as AudienceItem exposing (AudienceItem)
 import XB2.Data.Calc.AudienceIntersect exposing (XBQueryError)
 import XB2.Data.Caption as Caption exposing (Caption)
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Metric exposing (Metric)
 import XB2.Data.Namespace as Namespace
 import XB2.Data.Zod.Nullable as Nullable
@@ -179,7 +180,7 @@ type TableWarning msg
     | CellXBQueryError (Error XBQueryError)
 
 
-datasetCodesFromNamespaceCodes : XB2.Share.Store.Platform2.Store -> List Namespace.Code -> List XB2.Share.Data.Platform2.DatasetCode
+datasetCodesFromNamespaceCodes : XB2.Share.Store.Platform2.Store -> List Namespace.Code -> List Dataset.Code
 datasetCodesFromNamespaceCodes store namespaceCodes =
     store.datasetsToNamespaces
         |> RemoteData.map

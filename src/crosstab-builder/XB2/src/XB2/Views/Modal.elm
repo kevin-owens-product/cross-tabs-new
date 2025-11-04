@@ -3531,6 +3531,7 @@ addAsNewBasesContent flags { noOp, closeModal, msg, saveAsBase } data =
                                                                         , compatibilitiesMetadata = Nothing
                                                                         , taxonomyPaths = Nothing
                                                                         , isExcluded = False
+                                                                        , metadata = Nothing
                                                                         }
                                                         , noOp = noOp
                                                         }
@@ -3675,6 +3676,7 @@ mergeRoworColumContent flags { noOp, closeModal, msg, mergeRowOrColumn } data =
                                                                         , compatibilitiesMetadata = Nothing
                                                                         , taxonomyPaths = Nothing
                                                                         , isExcluded = False
+                                                                        , metadata = Nothing
                                                                         }
                                                         , noOp = noOp
                                                         }
@@ -3802,6 +3804,7 @@ removeBulkConfirmContents flags { noOp, msg, closeModal } { dialogCopy, updateMs
                                                 , compatibilitiesMetadata = Nothing
                                                 , taxonomyPaths = Nothing
                                                 , isExcluded = False
+                                                , metadata = Nothing
                                                 }
                                 , noOp = noOp
                                 }
@@ -5419,6 +5422,7 @@ affixGroupContentsMany_ flags data =
                                         , compatibilitiesMetadata = Nothing
                                         , taxonomyPaths = Nothing
                                         , isExcluded = False
+                                        , metadata = Nothing
                                         }
                         , noOp = data.msg NoOp
                         }
@@ -5462,6 +5466,7 @@ affixGroupContentsMany_ flags data =
                                             , compatibilitiesMetadata = Nothing
                                             , taxonomyPaths = Nothing
                                             , isExcluded = False
+                                            , metadata = Nothing
                                             }
                             , noOp = data.msg NoOp
                             }
@@ -5611,6 +5616,7 @@ affixGroupContentsOne_ flags data =
                                                 , compatibilitiesMetadata = Nothing
                                                 , taxonomyPaths = Nothing
                                                 , isExcluded = False
+                                                , metadata = Nothing
                                                 }
                                 , noOp = data.msg NoOp
                                 }
@@ -5646,6 +5652,7 @@ affixGroupContentsOne_ flags data =
                                                 , compatibilitiesMetadata = Nothing
                                                 , taxonomyPaths = Nothing
                                                 , isExcluded = False
+                                                , metadata = Nothing
                                                 }
                                 , noOp = data.msg NoOp
                                 }
@@ -5794,6 +5801,7 @@ editGroupContentsOne_ flags data =
                                                 , compatibilitiesMetadata = Nothing
                                                 , taxonomyPaths = Nothing
                                                 , isExcluded = False
+                                                , metadata = Nothing
                                                 }
                                 , noOp = data.msg NoOp
                                 }
@@ -5829,6 +5837,7 @@ editGroupContentsOne_ flags data =
                                                 , compatibilitiesMetadata = Nothing
                                                 , taxonomyPaths = Nothing
                                                 , isExcluded = False
+                                                , metadata = Nothing
                                                 }
                                 , noOp = data.msg NoOp
                                 }
@@ -6174,6 +6183,7 @@ viewGroupContents_ flags { hasChanges, onSubmit, onInput, closeModal, name, expr
                                     , compatibilitiesMetadata = Nothing
                                     , taxonomyPaths = Nothing
                                     , isExcluded = False
+                                    , metadata = Nothing
                                     }
                     , noOp = msg NoOp
                     }

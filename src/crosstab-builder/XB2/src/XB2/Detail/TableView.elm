@@ -56,6 +56,7 @@ import XB2.Data.Average as Average exposing (AverageTimeFormat)
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Calc.AudienceIntersect as AudienceIntersect exposing (XBQueryError)
 import XB2.Data.Caption as Caption
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Metric as Metric exposing (Metric(..))
 import XB2.Data.MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
@@ -79,7 +80,7 @@ import XB2.Share.Data.Labels
         , Wave
         , WaveCode
         )
-import XB2.Share.Data.Platform2 exposing (DatasetCode)
+import XB2.Share.Data.Platform2
 import XB2.Share.DragAndDrop.Move
 import XB2.Share.Gwi.FormatNumber
 import XB2.Share.Gwi.Html.Attributes as Attrs
@@ -555,7 +556,7 @@ selectionPanelView config p2Store model =
             case config.selectedExpression model of
                 [ key ] ->
                     let
-                        datasetsToNamespaces : BiDict DatasetCode Namespace.Code
+                        datasetsToNamespaces : BiDict Dataset.Code Namespace.Code
                         datasetsToNamespaces =
                             p2Store.datasetsToNamespaces
                                 |> RemoteData.withDefault BiDict.empty
@@ -3458,7 +3459,7 @@ viewHeaderDropdown triggers params =
                 False
                 Metric.allMetrics
 
-        datasetsToNamespaces : BiDict DatasetCode Namespace.Code
+        datasetsToNamespaces : BiDict Dataset.Code Namespace.Code
         datasetsToNamespaces =
             params.p2Store.datasetsToNamespaces
                 |> RemoteData.withDefault BiDict.empty

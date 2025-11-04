@@ -6,10 +6,6 @@ module XB2.Share.Data.Platform2 exposing
     , ChartFolderId
     , ChartFolderIdTag
     , CompatibilitiesMetadata
-    , Dataset
-    , DatasetCategory
-    , DatasetCode
-    , DatasetCodeTag
     , DatasetFolder(..)
     , DatasetFolderData
     , DatasetFolderId
@@ -39,7 +35,6 @@ module XB2.Share.Data.Platform2 exposing
     , datasetsFromExpression
     , deepestNamespaceCode
     , encodeAttribute
-    , encodeDatasetForWebcomponent
     , encodeUnwrappedAttribute
     , fetchFullUserEmails
     , getAudienceFolders
@@ -65,16 +60,16 @@ import XB2.Data.Audience as Audience
 import XB2.Data.Audience.Expression as Expression exposing (Expression)
 import XB2.Data.Audience.Flag as AudienceFlag
 import XB2.Data.Audience.Folder as AudienceFolder
+import XB2.Data.Dataset as Dataset
 import XB2.Data.Namespace as Namespace
 import XB2.Data.Suffix as Suffix
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
 import XB2.Share.Data.Auth as Auth
-import XB2.Share.Data.Id as Id exposing (Id, IdDict, IdSet)
+import XB2.Share.Data.Id as Id exposing (Id)
 import XB2.Share.Data.Labels
     exposing
-        ( CategoryId
-        , LocationCode
+        ( LocationCode
         , NamespaceLineage
         , ShortDatapointCode
         , ShortQuestionCode
@@ -82,7 +77,6 @@ import XB2.Share.Data.Labels
         )
 import XB2.Share.Gwi.Http exposing (HttpCmd)
 import XB2.Share.Gwi.List as List
-import XB2.Share.Store.Utils as Store
 
 
 host : Flags -> String
@@ -178,7 +172,7 @@ type alias Splitter =
 
 type alias AttributeTaxonomyPath =
     { taxonomyPath : List Taxonomy
-    , dataset : Maybe Dataset
+    , dataset : Maybe Dataset.Dataset
     }
 
 
@@ -203,6 +197,7 @@ type alias Attribute =
 
     -- A custom field not present in the wcs intercom that we use to handle Exclusions in Crosstabs.
     , isExcluded : Bool
+    , metadata : Maybe Expression.Metadata
     }
 
 
@@ -232,7 +227,7 @@ encodeAttributeTaxonomyPath : AttributeTaxonomyPath -> Encode.Value
 encodeAttributeTaxonomyPath taxonomyPath =
     Encode.object
         [ ( "taxonomy_path", encodeTaxonomyList taxonomyPath.taxonomyPath )
-        , ( "dataset", Encode.maybe encodeDatasetForWebcomponent taxonomyPath.dataset )
+        , ( "dataset", Encode.maybe Dataset.encodeForWebcomponent taxonomyPath.dataset )
         ]
 
 
@@ -399,7 +394,7 @@ attributeTaxonomyPathDecoder =
                 |> Decode.maybe
                 |> Decode.map (Maybe.withDefault [])
             )
-        |> Decode.andMap (Decode.maybe (Decode.field "dataset" datasetDecoder))
+        |> Decode.andMap (Decode.maybe (Decode.field "dataset" Dataset.decoder))
 
 
 emptyStringAsNothing : (String -> a) -> String -> Maybe a
@@ -429,6 +424,7 @@ attributeDecoder =
             |> Decode.andMap (Decode.optionalField "taxonomy_paths" <| Decode.list attributeTaxonomyPathDecoder)
             -- From the start it is never excluded
             |> Decode.andMap (Decode.succeed False)
+            |> Decode.andMap (Decode.maybe (Decode.field "metadata" Expression.metadataDecoder))
         )
 
 
@@ -454,125 +450,7 @@ attributeCodesDecoder =
 -- Datasets
 
 
-type alias DatasetCode =
-    Id DatasetCodeTag
-
-
-type DatasetCodeTag
-    = DatasetCodeTag
-
-
-type alias DatasetCategory =
-    { id : CategoryId
-    , name : String
-    , order : Float
-    }
-
-
-type alias Dataset =
-    { code : DatasetCode
-    , name : String
-    , description : String
-    , baseNamespaceCode : Namespace.Code
-    , categories : List DatasetCategory
-    , depth : Int
-    , order : Float
-    }
-
-
-datasetsDecoder : Decoder (List Dataset)
-datasetsDecoder =
-    Decode.list datasetWithoutOrderDecoder
-        |> Decode.map
-            (\almostDatasets ->
-                almostDatasets
-                    |> List.indexedMap (\order toDataset -> toDataset <| toFloat order)
-            )
-
-
-datasetWithoutOrderDecoder : Decoder (Float -> Dataset)
-datasetWithoutOrderDecoder =
-    Decode.succeed Dataset
-        |> Decode.andMap (Decode.field "code" Id.decode)
-        |> Decode.andMap (Decode.field "name" Decode.string)
-        |> Decode.andMap (Decode.field "description" Decode.string)
-        |> Decode.andMap (Decode.field "base_namespace_code" Namespace.codeDecoder)
-        |> Decode.andMap
-            (Decode.field "categories"
-                (Decode.list
-                    (Decode.succeed DatasetCategory
-                        |> Decode.andMap (Decode.field "id" Id.decode)
-                        |> Decode.andMap (Decode.field "name" Decode.string)
-                        |> Decode.andMap (Decode.field "order" Decode.float)
-                    )
-                )
-                |> Decode.maybe
-                |> Decode.map (Maybe.withDefault [])
-            )
-        |> Decode.andMap
-            (Decode.field "depth" Decode.int
-                |> Decode.maybe
-                |> Decode.map (Maybe.withDefault 0)
-            )
-
-
-datasetDecoder : Decoder Dataset
-datasetDecoder =
-    Decode.succeed Dataset
-        |> Decode.andMap (Decode.field "code" Id.decode)
-        |> Decode.andMap (Decode.field "name" Decode.string)
-        |> Decode.andMap (Decode.field "description" Decode.string)
-        |> Decode.andMap (Decode.field "base_namespace_code" Namespace.codeDecoder)
-        |> Decode.andMap
-            (Decode.field "categories"
-                (Decode.list
-                    (Decode.succeed DatasetCategory
-                        |> Decode.andMap (Decode.field "id" Id.decode)
-                        |> Decode.andMap (Decode.field "name" Decode.string)
-                        |> Decode.andMap (Decode.field "order" Decode.float)
-                    )
-                )
-                |> Decode.maybe
-                |> Decode.map (Maybe.withDefault [])
-            )
-        |> Decode.andMap
-            (Decode.field "depth" Decode.int
-                |> Decode.maybe
-                |> Decode.map (Maybe.withDefault 0)
-            )
-        |> Decode.andMap
-            (Decode.optionalNullableField "order" Decode.float
-                |> Decode.map (Maybe.withDefault 0)
-            )
-
-
-{-| NOTE: This will later be updated to be 1:1 with the decoder, but for that
-the webcomponents themselves need to be updated.
--}
-encodeDatasetForWebcomponent : Dataset -> Encode.Value
-encodeDatasetForWebcomponent dataset =
-    Encode.object
-        [ ( "code", Id.encode dataset.code )
-        , ( "name", Encode.string dataset.name )
-        , ( "description", Encode.string dataset.description )
-        , ( "base_namespace_code", Namespace.encodeCode dataset.baseNamespaceCode )
-        , ( "categories"
-          , Encode.list
-                (\category ->
-                    Encode.object
-                        [ ( "id", Id.encode category.id )
-                        , ( "name", Encode.string category.name )
-                        , ( "order", Encode.float category.order )
-                        ]
-                )
-                dataset.categories
-          )
-        , ( "depth", Encode.int dataset.depth )
-        , ( "order", Encode.float dataset.order )
-        ]
-
-
-getDatasets : Flags -> HttpCmd Never (List Dataset)
+getDatasets : Flags -> HttpCmd Never (List Dataset.Dataset)
 getDatasets flags =
     Http.request
         { method = "GET"
@@ -580,7 +458,7 @@ getDatasets flags =
             [ Auth.header flags.token ]
         , url = host flags ++ "/platform/datasets"
         , body = Http.emptyBody
-        , expect = XB2.Share.Gwi.Http.expectJson identity datasetsDecoder
+        , expect = XB2.Share.Gwi.Http.expectJson identity Dataset.listDecoder
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -603,7 +481,7 @@ type alias DatasetFolderData =
     , name : String
     , description : String
     , order : Float
-    , datasetCodes : List DatasetCode
+    , datasetCodes : List Dataset.Code
     , subfolders : List DatasetFolder
     }
 
@@ -620,7 +498,7 @@ datasetFolderDecoder =
         |> Decode.andMap (Decode.field "description" Decode.string)
         |> Decode.andMap (Decode.field "order" Decode.float)
         |> Decode.andMap
-            (Decode.optionalField "child_datasets" (Decode.list <| Decode.field "code" Id.decode)
+            (Decode.optionalField "child_datasets" (Decode.list <| Decode.field "code" Dataset.codeDecoder)
                 |> Decode.map (Maybe.withDefault [])
             )
         |> Decode.andMap
@@ -679,14 +557,26 @@ type alias Incompatibilities =
     AnyDict String LocationCode Incompatibility
 
 
-findDeepestDataset : List DatasetCode -> WebData (IdDict DatasetCodeTag Dataset) -> Maybe Dataset
+findDeepestDataset :
+    List Dataset.Code
+    -> WebData (Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset)
+    -> Maybe Dataset.Dataset
 findDeepestDataset usedDatasets allDatasets =
-    Store.getByIds allDatasets usedDatasets
+    (case allDatasets of
+        Success datasetStore ->
+            List.filterMap (\datasetCode -> Dict.Any.get datasetCode datasetStore) usedDatasets
+
+        _ ->
+            []
+    )
         |> List.reverseSortBy .depth
         |> List.head
 
 
-deepestDatasetNamespaceCode : List DatasetCode -> WebData (IdDict DatasetCodeTag Dataset) -> Maybe Namespace.Code
+deepestDatasetNamespaceCode :
+    List Dataset.Code
+    -> WebData (Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset)
+    -> Maybe Namespace.Code
 deepestDatasetNamespaceCode usedDatasets allDatasets =
     findDeepestDataset usedDatasets allDatasets
         |> Maybe.map .baseNamespaceCode
@@ -700,17 +590,24 @@ If we don't find a dataset here, we need to move to the nearest ancestor and try
 again. For that we need the namespace lineage to be fetched.
 
 -}
-datasetsForNamespace : BiDict DatasetCode Namespace.Code -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage) -> Namespace.Code -> WebData (IdSet DatasetCodeTag)
+datasetsForNamespace :
+    BiDict Dataset.Code Namespace.Code
+    -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
+    -> Namespace.Code
+    -> WebData (Set.Any.AnySet Dataset.StringifiedCode Dataset.Code)
 datasetsForNamespace datasetsToNamespaces lineages namespaceCode =
     let
-        simple : Namespace.Code -> IdSet DatasetCodeTag
+        simple : Namespace.Code -> Set.Any.AnySet Dataset.StringifiedCode Dataset.Code
         simple nsCode =
             datasetsToNamespaces
                 |> BiDict.getReverse nsCode
                 |> AssocSet.toList
-                |> Id.setFromList
+                |> Set.Any.fromList Dataset.codeToString
 
-        recursive : List Namespace.Code -> Namespace.Code -> WebData (IdSet DatasetCodeTag)
+        recursive :
+            List Namespace.Code
+            -> Namespace.Code
+            -> WebData (Set.Any.AnySet Dataset.StringifiedCode Dataset.Code)
         recursive ancestors_ nsCode =
             let
                 simple_ =
@@ -722,7 +619,7 @@ datasetsForNamespace datasetsToNamespaces lineages namespaceCode =
                         recursive restOfAncestors closestAncestor
 
                     [] ->
-                        Success Id.emptySet
+                        Success (Set.Any.empty Dataset.codeToString)
 
             else
                 Success simple_
@@ -811,13 +708,11 @@ type alias Timezone =
     }
 
 
-
--- TVChannels
--- NUMBER OF MINIMUM IMPRESSIONS
--- TARGET TIMEZONE
-
-
-datasetCodesForNamespaceCodes : BiDict DatasetCode Namespace.Code -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage) -> List Namespace.Code -> WebData (List DatasetCode)
+datasetCodesForNamespaceCodes :
+    BiDict Dataset.Code Namespace.Code
+    -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
+    -> List Namespace.Code
+    -> WebData (List Dataset.Code)
 datasetCodesForNamespaceCodes datasetsToNamespaces lineages namespaceCodes =
     XB2.Share.Data.Labels.compatibleTopLevelNamespaces lineages namespaceCodes
         |> RemoteData.map
@@ -831,12 +726,12 @@ datasetCodesForNamespaceCodes datasetsToNamespaces lineages namespaceCodes =
                        for now this seems to work.
                     -}
                     |> List.remoteDataValues
-                    |> List.foldl Set.Any.union Id.emptySet
+                    |> List.foldl Set.Any.union (Set.Any.empty Dataset.codeToString)
                     |> Set.Any.toList
             )
 
 
-datasetsFromExpression : BiDict DatasetCode Namespace.Code -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage) -> Expression -> WebData (List DatasetCode)
+datasetsFromExpression : BiDict Dataset.Code Namespace.Code -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage) -> Expression -> WebData (List Dataset.Code)
 datasetsFromExpression datasetsToNamespaces lineages expression =
     expression
         |> Expression.getNamespaceCodes
@@ -844,14 +739,14 @@ datasetsFromExpression datasetsToNamespaces lineages expression =
 
 
 deepestNamespaceCode :
-    WebData (IdDict DatasetCodeTag Dataset)
-    -> WebData (BiDict DatasetCode Namespace.Code)
+    WebData (Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset)
+    -> WebData (BiDict Dataset.Code Namespace.Code)
     -> Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
     -> Namespace.Code
     -> Maybe Namespace.Code
 deepestNamespaceCode datasets datasetsToNamespaces lineages namespaceCode =
     let
-        namespaceDatasets : WebData (List DatasetCode)
+        namespaceDatasets : WebData (List Dataset.Code)
         namespaceDatasets =
             datasetsToNamespaces
                 |> RemoteData.andThen
