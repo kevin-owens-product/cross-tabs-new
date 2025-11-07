@@ -8,7 +8,6 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
 import List.NonEmpty.Zipper as Zipper
-import RemoteData
 import Set.Any
 import Time exposing (Posix, Zone)
 import XB2.Data as Data
@@ -32,22 +31,17 @@ import XB2.RemoteData.Tracked exposing (RemoteData(..))
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
 import XB2.Share.Data.Core.Error as CoreError
-import XB2.Share.Data.Id exposing (IdDict)
+import XB2.Share.Data.Id
 import XB2.Share.Data.Labels
     exposing
-        ( Category
-        , CategoryId
-        , CategoryIdTag
-        , NamespaceAndQuestionCode
+        ( NamespaceAndQuestionCode
         , Question
         , QuestionAveragesUnit(..)
         )
-import XB2.Share.Data.Labels.Category
 import XB2.Share.Data.User
 import XB2.Share.Gwi.Http exposing (Error(..))
 import XB2.Share.Gwi.List as List
 import XB2.Share.Store.Platform2
-import XB2.Share.Store.Utils as Store
 import XB2.Share.Time.Format
 import XB2.Share.UndoRedo exposing (UndoRedo)
 import XB2.Sort as Sort
@@ -114,42 +108,6 @@ dump flags model store =
                 questions =
                     questionCodes
                         |> List.filterMap (\questionCode -> XB2.Share.Store.Platform2.getQuestionMaybe questionCode store)
-
-                uniqueCategories : List Category
-                uniqueCategories =
-                    let
-                        uniqueCategoryIds : List CategoryId
-                        uniqueCategoryIds =
-                            questions
-                                |> List.fastConcatMap .categoryIds
-                                |> List.uniqueBy XB2.Share.Data.Id.unwrap
-                    in
-                    Store.getByIds store.categories uniqueCategoryIds
-
-                uniqueCategoryPaths : IdDict CategoryIdTag String
-                uniqueCategoryPaths =
-                    let
-                        categories =
-                            RemoteData.withDefault XB2.Share.Data.Id.emptyDict store.categories
-
-                        formatPath path =
-                            path
-                                |> List.map .name
-                                |> String.join " > "
-                    in
-                    uniqueCategories
-                        |> List.map
-                            (\category ->
-                                ( category.id
-                                , " - " ++ formatPath (XB2.Share.Data.Labels.Category.categoryPath category categories)
-                                )
-                            )
-                        |> XB2.Share.Data.Id.dictFromList
-
-                findCategoryPaths : Question -> List String
-                findCategoryPaths question =
-                    question.categoryIds
-                        |> List.filterMap (\categoryId -> Dict.Any.get categoryId uniqueCategoryPaths)
             in
             questions
                 |> List.map
@@ -160,16 +118,10 @@ dump flags model store =
 
                             questionName =
                                 "question name: " ++ question.name
-
-                            categoryPaths =
-                                String.join "\n" <|
-                                    "category paths:"
-                                        :: findCategoryPaths question
                         in
                         String.join "\n"
                             [ questionCode
                             , questionName
-                            , categoryPaths
                             , "\n"
                             ]
                     )

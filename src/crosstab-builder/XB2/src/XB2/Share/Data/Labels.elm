@@ -1,6 +1,5 @@
 module XB2.Share.Data.Labels exposing
-    ( Category
-    , CategoryId
+    ( CategoryId
     , CategoryIdTag
     , Datapoint
     , DatapointAndSuffixCode
@@ -307,17 +306,6 @@ type CategoryIdTag
 
 type alias CategoryId =
     Id CategoryIdTag
-
-
-type alias Category =
-    { id : CategoryId
-    , name : String
-    , description : Maybe String
-    , parentId : Maybe CategoryId
-    , order : Float
-    , accessible : Bool
-    , questionCodes : List NamespaceAndQuestionCode
-    }
 
 
 

@@ -2,9 +2,6 @@ module XB2.Share.Data.Platform2 exposing
     ( Attribute
     , AttributeCodes
     , AttributeTaxonomyPath
-    , ChartFolder
-    , ChartFolderId
-    , ChartFolderIdTag
     , CompatibilitiesMetadata
     , DatasetFolder(..)
     , DatasetFolderData
@@ -15,16 +12,7 @@ module XB2.Share.Data.Platform2 exposing
     , Incompatibility
     , OrganisationId
     , OrganisationIdTag
-    , Segment
-    , SegmentId
-    , SegmentIdTag
-    , Splitter
-    , SplitterCode
-    , SplitterCodeTag
     , Taxonomy
-    , Timezone
-    , TimezoneCode
-    , TimezoneCodeTag
     , UserEmailId
     , UserEmailIdTag
     , attributeDecoder
@@ -54,7 +42,6 @@ import Json.Encode.Extra as Encode
 import Maybe.Extra as Maybe
 import RemoteData exposing (RemoteData(..), WebData)
 import Set.Any exposing (AnySet)
-import Time exposing (Posix)
 import Url.Builder
 import XB2.Data.Audience as Audience
 import XB2.Data.Audience.Expression as Expression exposing (Expression)
@@ -129,44 +116,6 @@ createAudienceWithExpression audienceName expression flags =
 
 
 -- SPLITTERS
-
-
-type SegmentIdTag
-    = SegmentIdTag
-
-
-{-| SegmentId == QuestionAndDatapointCode, but for clarity we keep it separate.
-There are casting functions available below.
--}
-type alias SegmentId =
-    Id SegmentIdTag
-
-
-type alias Segment =
-    { id : SegmentId
-    , name : String
-    , accessible : Bool
-    }
-
-
-type SplitterCodeTag
-    = SplitterCodeTag
-
-
-type alias SplitterCode =
-    Id SplitterCodeTag
-
-
-type alias Splitter =
-    { code : SplitterCode
-    , name : String
-    , segments : List Segment
-    , accessible : Bool
-    , position : Int
-    }
-
-
-
 -- ATTRIBUTES
 
 
@@ -524,26 +473,6 @@ getDatasetFolders flags =
 
 
 -- CHART FOLDERS
-
-
-type alias ChartFolderId =
-    Id ChartFolderIdTag
-
-
-type ChartFolderIdTag
-    = ChartFolderIdTag
-
-
-type alias ChartFolder =
-    { id : ChartFolderId
-    , name : String
-    , userId : Int
-    , createdAt : Posix
-    , updatedAt : Posix
-    }
-
-
-
 -- CHARTS
 
 
@@ -688,24 +617,6 @@ fullUserEmailsDecoder =
 
 
 -- Timezones
-
-
-type TimezoneCodeTag
-    = TimezoneCodeTag
-
-
-{-| TimezoneCode == QuestionAndDatapointCode, but for clarity we keep it separate.
-There are casting functions available below.
--}
-type alias TimezoneCode =
-    Id TimezoneCodeTag
-
-
-type alias Timezone =
-    { code : TimezoneCode
-    , name : String
-    , position : Int
-    }
 
 
 datasetCodesForNamespaceCodes :

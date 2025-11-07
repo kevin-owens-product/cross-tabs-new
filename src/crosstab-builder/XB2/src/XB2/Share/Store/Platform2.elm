@@ -34,9 +34,7 @@ import XB2.Share.Config exposing (Flags)
 import XB2.Share.Data.Id exposing (IdDict)
 import XB2.Share.Data.Labels as Labels
     exposing
-        ( Category
-        , CategoryIdTag
-        , Datapoint
+        ( Datapoint
         , Location
         , LocationCodeTag
         , NamespaceAndQuestionCode
@@ -50,13 +48,7 @@ import XB2.Share.Data.Labels as Labels
         )
 import XB2.Share.Data.Platform2
     exposing
-        ( ChartFolder
-        , ChartFolderIdTag
-        , DatasetFolder
-        , Splitter
-        , SplitterCodeTag
-        , Timezone
-        , TimezoneCodeTag
+        ( DatasetFolder
         )
 import XB2.Share.Gwi.Http exposing (Error, HttpCmd)
 import XB2.Share.Gwi.RemoteData as RemoteData
@@ -123,10 +115,7 @@ type StoreAction
 type alias Store =
     { audienceFolders : WebData (Dict.Any.AnyDict AudienceFolder.StringifiedId AudienceFolder.Id AudienceFolder.Folder)
     , audiences : WebData (Dict.Any.AnyDict Audience.StringifiedId Audience.Id Audience.Audience)
-    , audiencesV1ToV2 : WebData (Dict.Any.AnyDict Audience.StringifiedId Audience.Id Audience.Audience)
-    , splitters : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData (IdDict SplitterCodeTag Splitter))
     , questions : IdDict NamespaceAndQuestionCodeTag (WebData Question)
-    , categories : WebData (IdDict CategoryIdTag Category)
     , locations : WebData (IdDict LocationCodeTag Location)
     , locationsByNamespace : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData (IdDict LocationCodeTag Location))
     , allRegions : WebData (Dict Int Region)
@@ -136,10 +125,7 @@ type alias Store =
     , datasetFoldersTree : WebData (List DatasetFolder)
     , datasets : WebData (Dict.Any.AnyDict Dataset.StringifiedCode Dataset.Code Dataset.Dataset)
     , datasetsToNamespaces : WebData (BiDict Dataset.Code Namespace.Code)
-    , chartFolders : WebData (IdDict ChartFolderIdTag ChartFolder)
     , lineages : Dict.Any.AnyDict Namespace.StringifiedCode Namespace.Code (WebData NamespaceLineage)
-    , timezones : WebData (IdDict TimezoneCodeTag Timezone)
-    , timezonesOrdered : WebData (List Timezone)
     }
 
 
@@ -147,10 +133,7 @@ init : Store
 init =
     { audienceFolders = NotAsked
     , audiences = NotAsked
-    , audiencesV1ToV2 = NotAsked
-    , splitters = Dict.Any.empty Namespace.codeToString
     , questions = XB2.Share.Data.Id.emptyDict
-    , categories = NotAsked
     , locations = NotAsked
     , locationsByNamespace = Dict.Any.empty Namespace.codeToString
     , allRegions = NotAsked
@@ -160,10 +143,7 @@ init =
     , datasetFoldersTree = NotAsked
     , datasets = NotAsked
     , datasetsToNamespaces = NotAsked
-    , chartFolders = NotAsked
     , lineages = Dict.Any.empty Namespace.codeToString
-    , timezones = NotAsked
-    , timezonesOrdered = NotAsked
     }
 
 
