@@ -1205,13 +1205,6 @@
     zod "3.25.58"
     zod-validation-error "^3.2.0"
 
-"@globalwebindex/platform2-lib@7.1.0":
-  version "7.1.0"
-  resolved "https://npm.pkg.github.com/download/@GlobalWebIndex/platform2-lib/7.1.0/7d53570c79462403a53516ccadb05ad56d808bef#7d53570c79462403a53516ccadb05ad56d808bef"
-  integrity sha512-NgSgiqaxBHY8sLwCkV8X7tBjoNn1+T3AIGGqp4UNDzc0GdLn3dEdao9K1fotSoWJLIlSRBe1qPUhhfOcvNus3Q==
-  dependencies:
-    zod "^3.21.4"
-
 "@globalwebindex/platform2-lib@9.0.0":
   version "9.0.0"
   resolved "https://npm.pkg.github.com/download/@GlobalWebIndex/platform2-lib/9.0.0/251708c56f123461e12de5d241008907a8164b84#251708c56f123461e12de5d241008907a8164b84"
@@ -1219,9 +1212,9 @@
   dependencies:
     zod "^3.21.4"
 
-"@globalwebindex/platform2-lib@git+ssh://git@github.com/globalwebindex/platform2-lib#v7.1.0":
+"@globalwebindex/platform2-lib@git+ssh://git@github.com/globalwebindex/platform2-lib#v9.0.0":
   version "4.0.0"
-  resolved "git+ssh://git@github.com/globalwebindex/platform2-lib#81df872412fcfe01c5ca6e61ef002b66be36a62e"
+  resolved "git+ssh://git@github.com/globalwebindex/platform2-lib#28fe1e6cf4ef2bedcbcc3fa77944c99b63c84a51"
   dependencies:
     zod "^3.21.4"
 
@@ -1250,14 +1243,14 @@
     ua-parser-js "^1.0.33"
     zod "3.21.4"
 
-"@globalwebindex/platform2-web-components@3.1.0":
-  version "3.1.0"
-  resolved "https://npm.pkg.github.com/download/@GlobalWebIndex/platform2-web-components/3.1.0/a498926d1ae4e4bc10f5a054b411a6e47d30888d#a498926d1ae4e4bc10f5a054b411a6e47d30888d"
-  integrity sha512-f3Py/zOPx9gJDVz4+uf8jPJ4sDgueI1bInC5dJ4ETCdtKGTWfkEuuvtXedMQcawGOpjaVrwvAn8lc+vrcq9RLg==
+"@globalwebindex/platform2-web-components@3.2.0":
+  version "3.2.0"
+  resolved "https://npm.pkg.github.com/download/@GlobalWebIndex/platform2-web-components/3.2.0/295a8acd11b020ac9c80ae9e5745f971c5e7f19a#295a8acd11b020ac9c80ae9e5745f971c5e7f19a"
+  integrity sha512-ebYr965BGCYhCJkwQ6foHUenP/EDPfcGlsfNDlVfscNyYYMX5Z9Se8l2lH+ndg55heEJvdjJ3e0MO04tL8Awuw==
   dependencies:
     "@emotion/react" "11.10.5"
     "@emotion/styled" "11.10.5"
-    "@globalwebindex/platform2-lib" "7.1.0"
+    "@globalwebindex/platform2-lib" "9.0.0"
     "@globalwebindex/platform2-react-ui-components" "26.3.0"
     "@mui/material" "5.11.4"
     "@sentry/react" "7.31.1"
