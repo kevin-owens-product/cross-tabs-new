@@ -4630,7 +4630,7 @@ cellView p =
 
                             Just ( ( metric, value ), rest ) ->
                                 if Just metric == sortingMetric then
-                                    [ Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                                    [ Html.viewIf isTotalVsTotalCell
                                         (totalVsTotalDatasetWarningIcon { isColumns = False })
                                     , Html.span
                                         [ tableModuleClass
@@ -4682,7 +4682,7 @@ cellView p =
                                            )
 
                                 else
-                                    Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                                    Html.viewIf isTotalVsTotalCell
                                         (totalVsTotalDatasetWarningIcon { isColumns = False })
                                         :: (metricValues
                                                 |> List.map
@@ -4726,7 +4726,7 @@ cellView p =
                                            )
 
                     else
-                        Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                        Html.viewIf isTotalVsTotalCell
                             (totalVsTotalDatasetWarningIcon { isColumns = False })
                             :: (metricValues
                                     |> List.map
@@ -4777,7 +4777,7 @@ cellView p =
 
                             Just ( ( metric, value ), rest ) ->
                                 if Just metric == sortingMetric then
-                                    [ Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                                    [ Html.viewIf isTotalVsTotalCell
                                         (totalVsTotalDatasetWarningIcon { isColumns = True })
                                     , valueView p.className
                                         { isSortingMetric = True
@@ -4842,7 +4842,7 @@ cellView p =
                                             rest
 
                                 else
-                                    Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                                    Html.viewIf isTotalVsTotalCell
                                         (totalVsTotalDatasetWarningIcon { isColumns = True })
                                         :: List.map
                                             (\( metric_, value_ ) ->
@@ -4901,7 +4901,7 @@ cellView p =
                                             metricValues
 
                     else
-                        Html.viewIf (isTotalVsTotalCell && p.areDatasetsIncompatible)
+                        Html.viewIf isTotalVsTotalCell
                             (totalVsTotalDatasetWarningIcon { isColumns = True })
                             :: List.map
                                 (\( metric, value_ ) ->
