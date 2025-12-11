@@ -2822,7 +2822,8 @@ resolveAppliedBaseAudience config route flags p2Store place newBase model maybeR
                         in
                         newModel
                             |> Cmd.with (getAnalyticsCmd flags route BaseAudienceApplied { place = place } p2Store newModel)
-                            |> updateCellLoader config (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
+                            |> updateCellLoader config
+                                (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
                             |> Cmd.add (notification config P2Icons.tick notificationString)
                             |> Cmd.addTrigger (config.fetchManyP2 lineageRequests)
 
@@ -3017,9 +3018,8 @@ applyWavesSelection config route flags selectedWaveCodes p2Store { updateCurrent
                 newModel
                     -- TODO: schedule resort after finishing all new requests, OR alternatively reset the sort?
                     |> Cmd.with (getAnalyticsCmd flags route WavesChanged {} p2Store newModel)
-                    -- TODO: Investigate this deeply. SetVisibleCellsAndTableOffset cmd allows us to reload the cells already, so do we actually need to call updateCellLoader to fire the commands here?
-                    -- TODO: There's a double API trigger here.
-                    |> updateCellLoader config (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
+                    |> updateCellLoader config
+                        (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
             )
         |> Maybe.withDefault ( model, Cmd.none )
         |> closeEverything
@@ -3065,9 +3065,8 @@ applyLocationsSelection config route flags selectedLocationCodes p2Store { updat
                 newModel
                     -- TODO: schedule resort after finishing all new requests, OR alternatively reset the sort?
                     |> Cmd.with (getAnalyticsCmd flags route LocationsChanged {} p2Store newModel)
-                    -- TODO: Investigate this deeply. SetVisibleCellsAndTableOffset cmd allows us to reload the cells already, so do we actually need to call updateCellLoader to fire the commands here?
-                    -- TODO: There's a double API trigger here.
-                    |> updateCellLoader config (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
+                    |> updateCellLoader config
+                        (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
             )
         |> Maybe.withDefault ( model, Cmd.none )
         |> closeEverything
@@ -5206,7 +5205,7 @@ reloadNotLoadedCells : Config msg -> Flags -> XB2.Share.Store.Platform2.Store ->
 reloadNotLoadedCells config flags p2Store model =
     let
         ( newCrosstab, reloadCellsCommands ) =
-            ACrosstab.reloadNotLoadedCells
+            ACrosstab.reloadNotAskedCells
                 (currentCrosstab model)
 
         newModel =

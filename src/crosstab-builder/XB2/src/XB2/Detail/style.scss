@@ -2257,7 +2257,8 @@ $bases-panel-top-padding: 8px;
         $border-width: 1px;
         $border-stroke-length: 10px;
 
-        background-image: linear-gradient(to right, $border-color 50%, transparent 50%),
+        background-image:
+            linear-gradient(to right, $border-color 50%, transparent 50%),
             linear-gradient(to right, $border-color 50%, transparent 50%),
             linear-gradient(to bottom, $border-color 50%, transparent 50%),
             linear-gradient(to bottom, $border-color 50%, transparent 50%);

@@ -51,9 +51,8 @@ x-cooltip-tooltip {
 
     &.topleft {
         --cooltip-position-left: calc(
-            var(--cooltip-target-x) - var(--cooltip-width) + var(--cooltip-target-width) - var(
-                    --cooltip-offset
-                )
+            var(--cooltip-target-x) - var(--cooltip-width) +
+                var(--cooltip-target-width) - var(--cooltip-offset)
         );
         --cooltip-position-top: calc(
             var(--cooltip-target-y) - var(--cooltip-height) - var(
@@ -106,9 +105,8 @@ x-cooltip-tooltip {
                 )
         );
         --cooltip-position-top: calc(
-            var(--cooltip-target-y) + var(--cooltip-target-height) / 2 - var(
-                    --cooltip-height
-                ) / 2 + var(--cooltip-offset)
+            var(--cooltip-target-y) + var(--cooltip-target-height) /
+                2 - var(--cooltip-height) / 2 + var(--cooltip-offset)
         );
 
         &::before {
@@ -128,9 +126,8 @@ x-cooltip-tooltip {
                 var(--cooltip-from-middle-offset)
         );
         --cooltip-position-top: calc(
-            var(--cooltip-target-y) + var(--cooltip-target-height) / 2 - var(
-                    --cooltip-height
-                ) / 2 + var(--cooltip-offset)
+            var(--cooltip-target-y) + var(--cooltip-target-height) /
+                2 - var(--cooltip-height) / 2 + var(--cooltip-offset)
         );
 
         &::before {
@@ -146,9 +143,8 @@ x-cooltip-tooltip {
 
     &.bottomleft {
         --cooltip-position-left: calc(
-            var(--cooltip-target-x) - var(--cooltip-width) + var(--cooltip-target-width) - var(
-                    --cooltip-offset
-                )
+            var(--cooltip-target-x) - var(--cooltip-width) +
+                var(--cooltip-target-width) - var(--cooltip-offset)
         );
         --cooltip-position-top: calc(
             var(--cooltip-target-y) + var(--cooltip-target-height) +

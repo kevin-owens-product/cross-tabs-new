@@ -496,8 +496,8 @@ $row-label-width: 48px;
 
         .simplebar-track.simplebar-horizontal {
             left: calc(#{$column-width-first} + 7px);
-            right: $scrollbar-button-margin-from-screen-edge + 3 * $scrollbar-button-width +
-                2 * $scrollbar-button-margin-between-buttons +
+            right: $scrollbar-button-margin-from-screen-edge + 3 *
+                $scrollbar-button-width + 2 * $scrollbar-button-margin-between-buttons +
                 $scrollbar-track-margin-from-buttons + 3;
             bottom: $scrollbar-track-margin-from-screen-edge;
             height: $scrollbar-track-width;
@@ -733,8 +733,8 @@ $row-label-width: 48px;
             }
 
             &.right {
-                right: $scrollbar-button-margin-from-screen-edge + $scrollbar-button-width +
-                    $scrollbar-button-margin-between-buttons;
+                right: $scrollbar-button-margin-from-screen-edge +
+                    $scrollbar-button-width + $scrollbar-button-margin-between-buttons;
             }
         }
 
@@ -840,8 +840,8 @@ $row-label-width: 48px;
                 right: 0;
                 //we use the --total-col-width because of the col view
                 width: calc(
-                    #{$column-width-first} + (var(--total-col-width) *
-                                var(--columns-count))
+                    #{$column-width-first} +
+                        (var(--total-col-width) * var(--columns-count))
                 );
                 max-width: 100%;
                 height: 16px;
@@ -856,7 +856,8 @@ $row-label-width: 48px;
 
         &.metrics-in-rows {
             width: calc(
-                #{$column-width-first} + (#{$column-width-rest} * var(--columns-count)) + #{$padding-right}
+                #{$column-width-first} + (#{$column-width-rest} * var(--columns-count)) +
+                    #{$padding-right}
             );
         }
 
@@ -1706,7 +1707,8 @@ $row-label-width: 48px;
 
                         &--cont {
                             height: calc(
-                                var(--total-row-height, 112px) - #{$rowCellPadding} - #{$rowCellPadding}
+                                var(--total-row-height, 112px) - #{$rowCellPadding} -
+                                    #{$rowCellPadding}
                             );
                             min-width: 68px;
                             margin-left: 16px;
@@ -2480,7 +2482,8 @@ $row-label-width: 48px;
                 background-size:
                     var(--total-col-width, 332px) var(--header-column-height, 112px),
                     var(--total-col-width, 332px) 200%;
-                background-image: url("/assets/crosstab-builder/table-bg-loading-bar.svg"),
+                background-image:
+                    url("/assets/crosstab-builder/table-bg-loading-bar.svg"),
                     url("/assets/crosstab-builder/table-bg.svg");
                 background-repeat: repeat-x;
             }
@@ -3775,7 +3778,8 @@ $row-label-width: 48px;
 
                         &--cont {
                             height: calc(
-                                var(--total-row-height, 112px) - #{$rowCellPadding} - #{$rowCellPadding}
+                                var(--total-row-height, 112px) - #{$rowCellPadding} -
+                                    #{$rowCellPadding}
                             );
                             min-width: 68px;
                             margin-left: 16px;
@@ -4007,7 +4011,8 @@ $row-label-width: 48px;
                 background-size:
                     var(--total-col-width, 332px) var(--header-column-height, 112px),
                     var(--total-col-width, 332px) 200%;
-                background-image: url("/assets/crosstab-builder/table-bg-loading-bar.svg"),
+                background-image:
+                    url("/assets/crosstab-builder/table-bg-loading-bar.svg"),
                     url("/assets/crosstab-builder/table-bg.svg");
                 background-repeat: repeat-x;
             }
