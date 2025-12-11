@@ -1,0 +1,66 @@
+name: Run E2E Alpha (Feature Branch)
+run-name: Run the E2E tests in Feature Branch 🧪
+
+on:
+  workflow_call:
+    inputs:
+      feature_branch:
+        type: string
+        required: false
+        description: 'Feature branch name (from deploy-environment)'
+      commit_id:
+        type: string
+        required: false
+        description: 'Commit ID'
+      environment:
+        type: string
+        required: false
+        default: 'alpha'
+        description: 'Environment to run tests in'
+    secrets:
+      QA_SYNC_TA_TOKEN:
+        required: true
+      SA_GWI_HOST_NET:
+        required: true
+      GH_TOKEN:
+        required: false
+
+jobs:
+  runTests:
+    name: run-tests
+    runs-on: ${{ fromJSON(vars.GWI_QA_RUNNERS) }}
+    container:
+      image: eu.gcr.io/gwi-host-net/ubuntu:act-latest
+      credentials:
+        username: _json_key
+        password: ${{ secrets.SA_GWI_HOST_NET }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Get Feature branch name and commit id
+        id: getFeatureBranch
+        # Use feature branch, commit ID, and environment passed from main.yml
+        run: |
+          feature_branch="${{ inputs.feature_branch }}"
+          commit_id="${{ inputs.commit_id }}"
+          environment="${{ inputs.environment }}"
+          echo "Feature branch: $feature_branch"
+          echo "Commit ID: $commit_id"
+          echo "Environment: $environment"
+          echo "featureBranch=$feature_branch" >> $GITHUB_OUTPUT
+          echo "commitId=$commit_id" >> $GITHUB_OUTPUT
+          echo "environment=$environment" >> $GITHUB_OUTPUT
+
+      - name: Run E2E Tests In Feature Branch
+        uses: convictional/trigger-workflow-and-wait@v1.6.5
+        with:
+          owner: GlobalWebIndex
+          repo: gwi-platform-ta
+          github_token: ${{ secrets.QA_SYNC_TA_TOKEN }}
+          workflow_file_name: pr-e2e-trigger.yml
+          client_payload: '{"env": "${{ steps.getFeatureBranch.outputs.environment }}","caller_app": "crosstabs","caller_commit": "${{ steps.getFeatureBranch.outputs.commitId }}", "tags_exclude": "Skip,Flaky,NoFeatureBranch", "feature_branch": "${{ steps.getFeatureBranch.outputs.featureBranch }}", "image_tag": "13.16.0-20-131", "matrix": "[ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"}'
+          ref: master
+          propagate_failure: true
+          trigger_workflow: true
+          wait_workflow: true

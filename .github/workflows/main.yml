@@ -100,6 +100,34 @@ jobs:
     with:
       target_env: alpha
 
+  check-pr:
+    name: Check if commit is from PR
+    needs: [deploy-alpha]
+    if: ${{ always() && needs.deploy-alpha.result == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      pr_found: ${{ steps.PR.outputs.pr_found }}
+    steps:
+      - name: Get current PR
+        id: PR
+        uses: 8BitJonny/gh-get-current-pr@4.0.0
+
+  run-e2e-tests-alpha:
+    name: Run E2E tests on alpha environment
+    needs: [deploy-alpha, check-pr]
+    # Run tests for PRs (feature branches) - runs on PR creation and every commit in the PR
+    if: ${{ always() && needs.deploy-alpha.result == 'success' && needs.check-pr.outputs.pr_found == 'true' }}
+    uses: ./.github/workflows/feature-branch-cd.yml
+    secrets:
+      QA_SYNC_TA_TOKEN: ${{ secrets.QA_SYNC_TA_TOKEN }}
+      SA_GWI_HOST_NET: ${{ secrets.SA_GWI_HOST_NET }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    with:
+      feature_branch: ${{ github.ref_name }}
+      commit_id: ${{ github.sha }}
+      environment: alpha
+
+  
   deploy-production:
     uses: ./.github/workflows/deploy-environment.yml
     if: ${{ always() && github.ref == 'refs/heads/production' && needs.build-docker.result == 'success' && (needs.quality-checks.result == 'success' || needs.quality-checks.result == 'skipped') }}
