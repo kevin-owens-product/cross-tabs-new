@@ -12,6 +12,7 @@ module XB2.Data.Audience.Expression exposing
     , getNamespaceCodes
     , getQuestionAndDatapointCodes
     , getQuestionCodes
+    , getSuffixCodes
     , intersectionMany
     , metadataDecoder
     , sizeExpression
@@ -508,6 +509,21 @@ getQuestionCodes : Expression -> List Labels.NamespaceAndQuestionCode
 getQuestionCodes expression =
     foldr
         (\leaf acc -> leaf.namespaceAndQuestionCode :: acc)
+        []
+        expression
+
+
+getSuffixCodes : Expression -> List Suffix.Code
+getSuffixCodes expression =
+    foldr
+        (\leaf acc ->
+            case leaf.suffixCodes of
+                Optional.Present suffixes ->
+                    NonEmpty.toList suffixes ++ acc
+
+                Optional.Undefined ->
+                    acc
+        )
         []
         expression
 

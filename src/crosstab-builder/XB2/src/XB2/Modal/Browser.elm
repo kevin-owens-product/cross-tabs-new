@@ -130,7 +130,12 @@ type alias Config msg =
 
 
 type SelectedItemsGroup
-    = ItemsGroup Grouping (Maybe String) (NonEmpty SelectedItemsGroup)
+    = ItemsGroup
+        Grouping
+        { title : Maybe String
+        , minCount : Maybe Int
+        }
+        (NonEmpty SelectedItemsGroup)
     | SingleAttribute Attribute
     | SingleAudience Audience.Audience
 
@@ -237,7 +242,9 @@ expressionToSelectedItem options expression =
                 questionAndDatapointCodesAndMaybeSuffixCodes ->
                     SelectedGroup <|
                         ItemsGroup Or
-                            options.maybeFirstGroupTitle
+                            { title = options.maybeFirstGroupTitle
+                            , minCount = Optional.toMaybe leafData.minCount
+                            }
                             (NonemptyList.map
                                 (\( questionAndDatapointCode, maybeSuffixCode ) ->
                                     let
@@ -299,7 +306,13 @@ expressionToSelectedItem options expression =
                             )
 
         Expression.FirstLevelNode operator subExprs ->
-            SelectedGroup (ItemsGroup (logicOperatorToGrouping operator) options.maybeFirstGroupTitle (NonemptyList.map (expressionHelpToSelectedItemsGroup options) subExprs))
+            SelectedGroup
+                (ItemsGroup (logicOperatorToGrouping operator)
+                    { title = options.maybeFirstGroupTitle
+                    , minCount = Nothing
+                    }
+                    (NonemptyList.map (expressionHelpToSelectedItemsGroup options) subExprs)
+                )
 
         Expression.AllRespondents ->
             let
@@ -409,7 +422,9 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
 
                 questionAndDatapointCodesAndMaybeSuffixCodes ->
                     ItemsGroup Or
-                        Nothing
+                        { title = Nothing
+                        , minCount = Optional.toMaybe leafData.minCount
+                        }
                         (NonemptyList.map
                             (\( questionAndDatapointCode, maybeSuffixCode ) ->
                                 let
@@ -471,7 +486,11 @@ expressionHelpToSelectedItemsGroup options expressionHelp =
                         )
 
         Expression.Node operator subExprs ->
-            ItemsGroup (logicOperatorToGrouping operator) Nothing (NonemptyList.map (expressionHelpToSelectedItemsGroup options) subExprs)
+            ItemsGroup (logicOperatorToGrouping operator)
+                { title = Nothing
+                , minCount = Nothing
+                }
+                (NonemptyList.map (expressionHelpToSelectedItemsGroup options) subExprs)
 
 
 type alias DnDSystem =
@@ -734,10 +753,10 @@ getCaptionFromGroup group =
                 , subtitle = Nothing
                 }
 
-        ItemsGroup grouping groupName groups ->
+        ItemsGroup grouping { title } groups ->
             NonemptyList.map getCaptionFromGroup groups
                 |> Caption.fromGroupOfCaptions grouping
-                |> Maybe.unwrap identity Caption.setName groupName
+                |> Maybe.unwrap identity Caption.setName title
 
         SingleAudience audience ->
             Caption.create
@@ -854,9 +873,9 @@ toggleItemInclusion itemToToggle selectedItems =
 
             else
                 case group of
-                    ItemsGroup operator _ children ->
+                    ItemsGroup operator { minCount } children ->
                         -- Always remove the title of the group
-                        ItemsGroup operator Nothing (NonemptyList.map mapHelp children)
+                        ItemsGroup operator { title = Nothing, minCount = minCount } (NonemptyList.map mapHelp children)
 
                     _ ->
                         group
@@ -864,8 +883,8 @@ toggleItemInclusion itemToToggle selectedItems =
         replaceSelectedItemGroupTitleWithNothing : SelectedItemsGroup -> SelectedItemsGroup
         replaceSelectedItemGroupTitleWithNothing group =
             case group of
-                ItemsGroup operator _ children ->
-                    ItemsGroup operator Nothing children
+                ItemsGroup operator { minCount } children ->
+                    ItemsGroup operator { title = Nothing, minCount = minCount } children
 
                 _ ->
                     group
@@ -938,7 +957,7 @@ toggleItemInclusion itemToToggle selectedItems =
 getExpressionFromGroup : SelectedItemsGroup -> Expression.Expression
 getExpressionFromGroup group =
     case group of
-        ItemsGroup grouping _ groups ->
+        ItemsGroup grouping { minCount } groups ->
             let
                 connectByGrouping =
                     case grouping of
@@ -951,8 +970,101 @@ getExpressionFromGroup group =
                         And ->
                             Expression.intersectionMany
             in
-            NonemptyList.map getExpressionFromGroup groups
-                |> connectByGrouping
+            case grouping of
+                Or ->
+                    let
+                        qAndDpCodes =
+                            NonemptyList.map getExpressionFromGroup groups
+                                |> NonemptyList.toList
+                                |> List.fastConcatMap Expression.getQuestionAndDatapointCodes
+
+                        nsCodes =
+                            NonemptyList.map getExpressionFromGroup groups
+                                |> NonemptyList.toList
+                                |> List.fastConcatMap Expression.getQuestionCodes
+
+                        suffixes =
+                            NonemptyList.map getExpressionFromGroup groups
+                                |> NonemptyList.toList
+                                |> List.fastConcatMap Expression.getSuffixCodes
+                                |> List.unique
+
+                        allQuestionCodesAreEqual =
+                            case nsCodes of
+                                [] ->
+                                    True
+
+                                firstNsCode :: restNsCodes ->
+                                    List.all (\nsCode -> nsCode == firstNsCode) restNsCodes
+
+                        allAttributesAreIncluded =
+                            List.all
+                                (\grp ->
+                                    let
+                                        attrs =
+                                            getAttributesFromGroup grp
+                                    in
+                                    List.all (\attr -> not attr.isExcluded) attrs
+                                )
+                                (NonemptyList.toList groups)
+
+                        allAttributesAreExcluded =
+                            List.all
+                                (\grp ->
+                                    let
+                                        attrs =
+                                            getAttributesFromGroup grp
+                                    in
+                                    List.all (\attr -> attr.isExcluded) attrs
+                                )
+                                (NonemptyList.toList groups)
+
+                        fstLvlLeaf =
+                            Maybe.map2
+                                (\ns dp ->
+                                    Expression.FirstLevelLeaf
+                                        { namespaceAndQuestionCode = ns
+                                        , questionAndDatapointCodes = dp
+                                        , suffixCodes = Optional.fromMaybe (NonemptyList.fromList suffixes)
+                                        , isExcluded =
+                                            let
+                                                isExcluded =
+                                                    List.all
+                                                        (\grp ->
+                                                            let
+                                                                attrs =
+                                                                    getAttributesFromGroup grp
+                                                            in
+                                                            List.all (\attr -> attr.isExcluded) attrs
+                                                        )
+                                                        (NonemptyList.toList groups)
+                                            in
+                                            Optional.Present isExcluded
+                                        , minCount = Optional.fromMaybe minCount
+                                        , metadata = Optional.Undefined
+                                        }
+                                )
+                                (List.head nsCodes)
+                                (NonemptyList.fromList qAndDpCodes)
+                    in
+                    if allQuestionCodesAreEqual && (allAttributesAreIncluded || allAttributesAreExcluded) then
+                        Maybe.withDefault
+                            (NonemptyList.map getExpressionFromGroup groups
+                                |> connectByGrouping
+                            )
+                            fstLvlLeaf
+
+                    else
+                        NonemptyList.map getExpressionFromGroup groups
+                            |> connectByGrouping
+
+                And ->
+                    NonemptyList.map getExpressionFromGroup groups
+                        |> connectByGrouping
+
+                Split ->
+                    NonemptyList.map getExpressionFromGroup groups
+                        |> connectByGrouping
 
         SingleAttribute attr ->
             AttributeBrowser.getXBItemFromAttribute attr
@@ -1068,7 +1180,7 @@ groupItemWith selected active model =
                                     |> List.filter ((/=) selected)
                                     |> List.filterMap itemToGroupable
                                     |> List.foldl (\a b -> NonemptyList.append b a) firstItemInNewGroup
-                                    |> ItemsGroup And Nothing
+                                    |> ItemsGroup And { title = Nothing, minCount = Nothing }
                     )
 
         cleanFromActive : SelectedItemsGroup -> Maybe SelectedItemsGroup
@@ -1215,7 +1327,7 @@ groupItemsWith selected active model =
                             |> List.filter ((/=) groupDestination)
                             |> List.filterMap itemToGroupable
                             |> List.foldl (\a b -> NonemptyList.append b a) firstItemInNewGroup
-                            |> ItemsGroup And Nothing
+                            |> ItemsGroup And { title = Nothing, minCount = Nothing }
                     )
 
         replaceWithGrouped : SelectedItemsGroup -> Maybe SelectedItemsGroup
@@ -1678,7 +1790,7 @@ update config route flags store msg model =
                                                         Just group
                                             )
                                         |> NonemptyList.fromList
-                                        |> Maybe.unwrap m.selectedItems (ItemsGroup grouping Nothing >> SelectedGroup >> List.singleton)
+                                        |> Maybe.unwrap m.selectedItems (ItemsGroup grouping { title = Nothing, minCount = Nothing } >> SelectedGroup >> List.singleton)
                         }
                     )
                     model
@@ -1695,7 +1807,7 @@ update config route flags store msg model =
                                         if item == item1 then
                                             case ( itemToGroupable item, itemToGroupable item2 ) of
                                                 ( Just itemToGroup1, Just itemToGroup2 ) ->
-                                                    SelectedGroup <| ItemsGroup grouping Nothing <| NonemptyList.append itemToGroup1 itemToGroup2
+                                                    SelectedGroup <| ItemsGroup grouping { title = Nothing, minCount = Nothing } <| NonemptyList.append itemToGroup1 itemToGroup2
 
                                                 _ ->
                                                     item
@@ -1854,9 +1966,9 @@ update config route flags store msg model =
                         case it of
                             SelectedGroup group ->
                                 case group of
-                                    ItemsGroup grouping _ items ->
+                                    ItemsGroup grouping { minCount } items ->
                                         if Maybe.isJust name then
-                                            SelectedGroup <| ItemsGroup grouping name items
+                                            SelectedGroup <| ItemsGroup grouping { title = name, minCount = minCount } items
 
                                         else
                                             SelectedGroup group

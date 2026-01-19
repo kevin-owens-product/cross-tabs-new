@@ -214,8 +214,13 @@ getXBItemFromAttribute attribute =
             }
     , expression =
         Expression.FirstLevelLeaf
-            { isExcluded = Optional.Present attribute.isExcluded
-            , minCount = Optional.Present 1
+            { isExcluded =
+                if attribute.isExcluded then
+                    Optional.Present attribute.isExcluded
+
+                else
+                    Optional.Undefined
+            , minCount = Optional.Undefined
             , namespaceAndQuestionCode =
                 XB2.Share.Data.Labels.addNamespaceToQuestionCode
                     attribute.namespaceCode
