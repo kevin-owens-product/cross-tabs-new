@@ -30,6 +30,7 @@ module XB2.Data exposing
     , defaultProjectHeaderSize
     , definitionNamespaceAndQuestionCodes
     , definitionNamespaceCodes
+    , definitionNamespaceQuestionAndSuffixCodes
     , destroyXBFolder
     , destroyXBFolderWithContent
     , destroyXBProject
@@ -45,6 +46,7 @@ module XB2.Data exposing
     , getFullyLoadedProject
     , getProjectDatasetNames
     , getProjectQuestionCodes
+    , getProjectRowAndColumnQuestionCodes
     , getValidEmailCrosstabUser
     , getValidFullUserEmail
     , isMine
@@ -101,18 +103,22 @@ import XB2.Data.DeviceBasedUsage as DeviceBasedUsage exposing (DeviceBasedUsage)
 import XB2.Data.Metric as Metric exposing (Metric)
 import XB2.Data.MetricsTransposition as MetricsTransposition exposing (MetricsTransposition(..))
 import XB2.Data.Namespace as Namespace
+import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Optional as Optional
 import XB2.List.Sort exposing (ProjectOwner(..))
 import XB2.Share.Config exposing (Flags)
 import XB2.Share.Config.Main
 import XB2.Share.Data.Auth as Auth
 import XB2.Share.Data.Core.Error as CoreError
-import XB2.Share.Data.Id exposing (Id)
+import XB2.Share.Data.Id exposing (Id, IdSet)
 import XB2.Share.Data.Labels
     exposing
         ( LocationCode
         , NamespaceAndQuestionCode
+        , NamespaceAndQuestionCodeTag
+        , QuestionAndDatapointCode
         , WaveCode
+        , splitQuestionCode
         )
 import XB2.Share.Data.Platform2 exposing (FullUserEmail, OrganisationId)
 import XB2.Share.Dialog.ErrorDisplay exposing (ErrorDisplay)
@@ -1883,6 +1889,36 @@ definitionNamespaceAndQuestionCodes definition =
                 |> Set.Any.toList
 
 
+definitionNamespaceQuestionAndSuffixCodes : AudienceDefinition -> List ( Namespace.Code, QuestionAndDatapointCode, Maybe Suffix.Code )
+definitionNamespaceQuestionAndSuffixCodes definition =
+    case definition of
+        Average avg ->
+            case avg of
+                Average.AvgWithoutSuffixes nsAndQCode ->
+                    [ ( XB2.Share.Data.Labels.questionCodeToNamespaceCode nsAndQCode
+                      , splitQuestionCode nsAndQCode
+                            |> Tuple.second
+                            |> XB2.Share.Data.Id.unwrap
+                            |> XB2.Share.Data.Id.fromString
+                      , Nothing
+                      )
+                    ]
+
+                Average.AvgWithSuffixes _ questionAndDatapointCode ->
+                    [ ( XB2.Share.Data.Labels.questionCodeToNamespaceCode (Average.getQuestionCode avg)
+                      , questionAndDatapointCode
+                      , Nothing
+                      )
+                    ]
+
+        DeviceBasedUsage dbu ->
+            splitQuestionCode (DeviceBasedUsage.getQuestionCode dbu)
+                |> (\( nsCode, qCode ) -> [ ( nsCode, XB2.Share.Data.Id.fromString (XB2.Share.Data.Id.unwrap qCode), Nothing ) ])
+
+        Expression expr ->
+            Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes expr
+
+
 getProjectQuestionCodes : XBProjectFullyLoaded -> List NamespaceAndQuestionCode
 getProjectQuestionCodes project =
     (NonemptyList.toList project.data.bases
@@ -1891,6 +1927,14 @@ getProjectQuestionCodes project =
         ++ List.fastConcatMap (.definition >> definitionNamespaceAndQuestionCodes) project.data.rows
         ++ List.fastConcatMap (.definition >> definitionNamespaceAndQuestionCodes) project.data.columns
         |> unique
+
+
+getProjectRowAndColumnQuestionCodes : XBProjectFullyLoaded -> IdSet NamespaceAndQuestionCodeTag
+getProjectRowAndColumnQuestionCodes project =
+    List.fastConcatMap (.definition >> definitionNamespaceAndQuestionCodes) project.data.rows
+        ++ List.fastConcatMap (.definition >> definitionNamespaceAndQuestionCodes) project.data.columns
+        |> unique
+        |> Set.Any.fromList XB2.Share.Data.Id.unwrap
 
 
 getCrosstabDatasetCodes : List AudienceDefinition -> List Expression -> Store -> List Dataset.Code

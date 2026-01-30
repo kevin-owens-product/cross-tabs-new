@@ -32,7 +32,7 @@
     "@globalwebindex/platform2-lib": "git+ssh://git@github.com/globalwebindex/platform2-lib#v9.0.0",
     "@globalwebindex/platform2-web-components": "3.3.0",
     "@sentry/webpack-plugin": "3.5.0",
-    "@types/d3": "^7.1.0",
+    "@types/d3": "7.4.3",
     "@types/webpack-dev-server": "4.7.2",
     "@webcomponents/webcomponentsjs": "^2.6.0",
     "autoprefixer": "^10.4.2",

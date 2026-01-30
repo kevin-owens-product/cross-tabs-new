@@ -55,16 +55,9 @@ const extendedProperties = (basicProperties, ENV) => {
     return {
         ...basicProperties,
         plan_handle_snapshot: ENV.user.plan_handle,
-        access_end_snapshot: nullAsEmptyString(ENV.user.access_end),
-        app_user_id_snapshot: ENV.user.id,
-        customer_features_snapshot: ENV.user.customer_features,
-        job_title_snapshot: ENV.user.job_title,
-        organisation_name_snapshot: ENV.user.organisation_name,
         user_agent: window.navigator.userAgent,
         browser_name: browser.name,
         browser_version: browser.version,
-        floc_id: ENV.cohort?.id ?? null,
-        floc_version: ENV.cohort?.version ?? null,
         screen_height: window.screen.height,
         screen_width: window.screen.width
     };
@@ -80,6 +73,7 @@ const track = (ENV, eventName, properties = {}) => {
         user_id: ENV.user.id,
         user_email: ENV.user.email,
         event_name: eventName,
+        timestamp: Date.now(),
         properties: extendedProperties(properties, ENV)
     });
 
@@ -112,6 +106,7 @@ const batch = (ENV, events) => {
                 user_id: ENV.user.id,
                 user_email: ENV.user.email,
                 event_name: eventName,
+                timestamp: Date.now(),
                 properties: extendedProperties(properties, ENV)
             };
         })

@@ -180,7 +180,7 @@ detailConfig c =
             c.msg
                 << XBStoreActionUserSettings
                 << SetUserSettings
-        , shareAndCopyLink = c.msg << XBStoreActionProject ShareProjectWithLink
+        , shareAndCopyLink = c.msg << XBStoreActionProject (ShareProjectWithLink Place.CrosstabBuilder)
         , setNewBasesOrder =
             \{ triggeredFrom, shouldFireAnalytics } baseAudiencesOrder activeBaseIndex ->
                 c.msg <|
@@ -279,7 +279,7 @@ modalConfig c =
     , turnOffViewSettingsAndContinue = c.msg <| DetailMsg Detail.TurnOffViewSettingsAndContinue
     , keepViewSettingsAndContinue = c.msg <| DetailMsg Detail.KeepViewSettingsAndContinue
     , shareProject = c.msg << XBStoreActionProject ShareProject
-    , shareAndCopyLink = c.msg << XBStoreActionProject ShareProjectWithLink
+    , shareAndCopyLink = \place -> c.msg << XBStoreActionProject (ShareProjectWithLink place)
     , partialLoadAndSort = c.msg << DetailMsg << Detail.LoadCellsForSorting
     , removeSortingAndCloseModal = c.msg <| DetailMsg Detail.RemoveSortingAndCloseModal
     , cancelSortingLoading = c.msg <| DetailMsg Detail.CancelSortingLoading
@@ -439,7 +439,7 @@ type StoreActionProject
         }
     | FetchFullProject
     | ShareProject
-    | ShareProjectWithLink
+    | ShareProjectWithLink Place.Place
     | UnshareMe
     | SetFolder (Maybe XBFolder)
 
@@ -482,6 +482,7 @@ type Msg
     | OpenModal Modal
     | OpenSharingModal XBProject
     | CloseModal
+    | SetTrackingForProjectSave (Maybe ( XBData.XBProjectId, ProjectSavingState ))
     | FetchSingleProject XBProjectId
     | XBStoreActionProject StoreActionProject XBProject
     | XBStoreActionProjects StoreActionProjects (List XBProject)
@@ -627,6 +628,17 @@ openSavedProject config flags route p2Store ( model, cmd ) =
                         |> Glue.Lazy.updateModelWith detail Detail.reopeingProject
                         |> Cmd.pure
                         |> Glue.Lazy.updateWith detail (Cmd.pure >> Detail.checkIfSharedProjectIsUpToDate config.detailConfig fullProject)
+                        |> Cmd.addIf (not <| Maybe.unwrap False Detail.projectHasJustBeenSavedAsNew model.detailModel)
+                            (Analytics.trackEvent flags
+                                route
+                                Place.CrosstabBuilderList
+                                (ProjectOpened
+                                    { project = fullProject
+                                    , store = p2Store
+                                    }
+                                )
+                            )
+                        |> Glue.Lazy.updateWith detail (Detail.setProjectHasJustBeenSavedAsNew False)
 
                 _ ->
                     -- The project was last opened OR we don't have waves and locations => do nothing
@@ -658,22 +670,6 @@ openSavedProject config flags route p2Store ( model, cmd ) =
                             p2Store
                             (RemoteData.toMaybe model.xbStore.userSettings)
                         )
-                    |> Cmd.addMaybe
-                        (\detailModel ->
-                            Analytics.trackEvent flags
-                                route
-                                Place.CrosstabBuilderList
-                                (UnsavedProjectOpened
-                                    { project =
-                                        Detail.getNewProjectFromCrosstab
-                                            flags
-                                            "new"
-                                            detailModel
-                                    , store = p2Store
-                                    }
-                                )
-                        )
-                        model.detailModel
 
             Router.ProjectList ->
                 closeModal model
@@ -1514,8 +1510,8 @@ projectSavedAnalytics config p2Store model =
             Cmd.pure model
 
 
-updateXBStoreActionProject : Config msg -> Flags -> Router.Route -> StoreActionProject -> XBProject -> Model -> ( Model, Cmd msg )
-updateXBStoreActionProject config flags route action project model =
+updateXBStoreActionProject : Config msg -> Flags -> Router.Route -> StoreActionProject -> XBProject -> Model -> XB2.Share.Store.Platform2.Store -> ( Model, Cmd msg )
+updateXBStoreActionProject config flags route action project model p2Store =
     let
         updateStore_ storeFn xbProject =
             model
@@ -1576,7 +1572,6 @@ updateXBStoreActionProject config flags route action project model =
                     )
                 )
                 (\xbProject -> XBStoreActionProject CreateProject xbProject)
-                |> Glue.updateWith Glue.id (\m -> Cmd.pure { m | trackProjectSaving = Just ( project.id, NewlyCreated ) })
                 |> Cmd.addTrigger fetchQuestionsForAnalyticsCmd
 
         CreateProjectWithoutRedirect ->
@@ -1597,12 +1592,11 @@ updateXBStoreActionProject config flags route action project model =
                 (updateStore_
                     (XBStore.createXBProject
                         (model.listModel |> Maybe.andThen .currentFolderId)
-                        []
+                        [ .id >> (\xbProjectId -> Cmd.perform (SetTrackingForProjectSave (Just ( xbProjectId, NewlyCreated )))) ]
                     )
                 )
                 (XBStoreActionProject CreateProjectWithoutRedirect)
                 |> Glue.updateWith Glue.id (closeModal >> Cmd.pure)
-                |> Glue.updateWith Glue.id (\m -> Cmd.pure { m | trackProjectSaving = Just ( project.id, NewlyCreated ) })
                 |> Cmd.addTrigger fetchQuestionsForAnalyticsCmd
 
         UpdateProject ->
@@ -1649,14 +1643,22 @@ updateXBStoreActionProject config flags route action project model =
         ShareProject ->
             updateStore_ XBStore.shareXBProject project
 
-        ShareProjectWithLink ->
+        ShareProjectWithLink place ->
             (if project.shared == XBData.SharedByLink then
                 copySharedLink config flags route project model
 
              else
                 updateStore_ XBStore.shareXBProjectWithLink project
             )
-                |> Cmd.add (Analytics.trackEvent flags route Place.CrosstabBuilder <| Analytics.CopyLink { projectId = project.id, projectName = project.name })
+                |> Cmd.add
+                    (Analytics.trackEvent flags route place <|
+                        Analytics.CopyLink
+                            { projectId = project.id
+                            , projectName = project.name
+                            , project = XBData.getFullyLoadedProject project
+                            , store = p2Store
+                            }
+                    )
 
         UnshareMe ->
             updateStore_ XBStore.unshareMe project
@@ -1993,8 +1995,16 @@ update config zone flags maybeUrl route p2Store msg model =
 
         OpenSharingModal project ->
             let
+                place =
+                    case route of
+                        Router.Project _ ->
+                            Place.CrosstabBuilder
+
+                        _ ->
+                            Place.CrosstabBuilderList
+
                 ( modal, cmds ) =
-                    Modal.initShareProject config.modalConfig flags project
+                    Modal.initShareProject config.modalConfig flags place project
             in
             openModal config modal model
                 |> Cmd.add cmds
@@ -2012,7 +2022,7 @@ update config zone flags maybeUrl route p2Store msg model =
                 |> Cmd.add (XBList.updateTime config.listConfig)
 
         XBStoreActionProject sMsg project ->
-            updateXBStoreActionProject config flags route sMsg project model
+            updateXBStoreActionProject config flags route sMsg project model p2Store
 
         XBStoreActionProjects sMsg projects ->
             updateXBStoreActionProjects config flags sMsg projects model
@@ -2022,6 +2032,9 @@ update config zone flags maybeUrl route p2Store msg model =
 
         XBStoreActionUserSettings sMsg ->
             updateXBStoreActionUserSettings config flags sMsg model
+
+        SetTrackingForProjectSave maybeSaveTracking ->
+            Cmd.pure { model | trackProjectSaving = maybeSaveTracking }
 
         CreateXBProject ->
             model

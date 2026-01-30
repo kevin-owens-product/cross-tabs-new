@@ -31,12 +31,14 @@ module XB2.Page.Detail exposing
     , openNewProject
     , openSavedProject
     , projectDestroyed
+    , projectHasJustBeenSavedAsNew
     , projectUpdated
     , reopeingProject
     , saveChangesAndGoBackToProjectList
     , saveEditedProject
     , savingAudience
     , setCollapsedHeader
+    , setProjectHasJustBeenSavedAsNew
     , showUnsavedChangesDialog
     , subscriptions
     , update
@@ -486,6 +488,7 @@ type alias Model =
         { baseFocused : Maybe Int
         , baseSelectedToMove : Maybe Int
         }
+    , projectHasJustBeenSavedAsNew : Bool
     }
 
 
@@ -551,6 +554,16 @@ getLastOpenedProjectId { unsaved } =
 
         UnsavedEdited ->
             Nothing
+
+
+projectHasJustBeenSavedAsNew : Model -> Bool
+projectHasJustBeenSavedAsNew model =
+    model.projectHasJustBeenSavedAsNew
+
+
+setProjectHasJustBeenSavedAsNew : Bool -> Model -> ( Model, Cmd msg )
+setProjectHasJustBeenSavedAsNew set model =
+    Cmd.pure { model | projectHasJustBeenSavedAsNew = set }
 
 
 currentCrosstabData : Model -> CrosstabData
@@ -733,6 +746,7 @@ init currentTime flags =
         { baseFocused = Nothing
         , baseSelectedToMove = Nothing
         }
+    , projectHasJustBeenSavedAsNew = False
     }
         |> Cmd.with (Dom.debouncedScrollEvent Common.scrollTableId)
         |> Cmd.add (Dom.debouncedScrollEvent Common.basesPanelScrollableId)
@@ -2003,6 +2017,13 @@ trackGroupAddedByAppendToBase flags route counts grouping newExpression p2Store 
         , datasetNames =
             getDatasetCodesFromAudienceExpression p2Store newExpression
                 |> getDatasetNamesFromCodes p2Store
+        , namespaceCodes =
+            Expression.getNamespaceCodes newExpression
+        , questionCodes =
+            Expression.getQuestionCodes newExpression
+        , datapointCodes =
+            Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes newExpression
+        , store = p2Store
         }
         p2Store
         model
@@ -2143,6 +2164,25 @@ trackGroupsAffixed flags route addedItems groupsToSave grouping operator affixed
                         getDatasetCodesFromAudienceExpression p2Store newExpression
                             |> getDatasetNamesFromCodes p2Store
                     )
+        , namespaceCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getNamespaceCodes newExpression
+                    )
+        , questionCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getQuestionCodes newExpression
+                    )
+        , datapointCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes newExpression
+                    )
+        , store = p2Store
         }
         p2Store
         model
@@ -2194,6 +2234,39 @@ trackGroupsEdited flags route addedItems groupsToSave grouping p2Store model =
                     (\{ newExpression } ->
                         getDatasetCodesFromAudienceExpression p2Store newExpression
                             |> getDatasetNamesFromCodes p2Store
+                    )
+        , namespaceCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getNamespaceCodes newExpression
+                    )
+        , questionCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getQuestionCodes newExpression
+                    )
+        , store = p2Store
+        , datapointCodes =
+            groupsToSave
+                |> List.fastConcatMap
+                    (\{ newExpression } ->
+                        Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes newExpression
+                    )
+        , audiencesAdded =
+            addedItems
+                |> List.filterMap
+                    (\item ->
+                        case item of
+                            SelectedAudience audience ->
+                                Just audience
+
+                            SelectedGroup _ ->
+                                Nothing
+
+                            _ ->
+                                Nothing
                     )
         }
         p2Store
@@ -2271,6 +2344,159 @@ trackGroupsAddedAsNew flags route addedItems direction grouping p2Store model =
                         |> getDatasetNamesFromCodes p2Store
                 )
                 addedItems
+        , namespaceCodes =
+            List.fastConcatMap
+                (\selectedItem ->
+                    case selectedItem of
+                        SelectedAttribute attribute ->
+                            [ attribute.namespaceCode ]
+
+                        SelectedAudience audience ->
+                            Expression.getNamespaceCodes audience.expression
+
+                        SelectedAverage average ->
+                            [ AttributeBrowser.getAverageQuestion average
+                                |> .namespaceCode
+                            ]
+
+                        SelectedDeviceBasedUsage dbu ->
+                            [ dbu.namespaceCode ]
+
+                        SelectedGroup group ->
+                            ModalBrowser.groupFoldr
+                                (\maybeAttr maybeAudience acc ->
+                                    let
+                                        attrCodes =
+                                            Maybe.unwrap []
+                                                (\attr ->
+                                                    [ attr.namespaceCode ]
+                                                )
+                                                maybeAttr
+
+                                        audienceCodes =
+                                            Maybe.unwrap []
+                                                (\audience ->
+                                                    audience.expression
+                                                        |> Expression.getNamespaceCodes
+                                                )
+                                                maybeAudience
+                                    in
+                                    acc ++ attrCodes ++ audienceCodes
+                                )
+                                []
+                                group
+                )
+                addedItems
+        , questionCodes =
+            List.fastConcatMap
+                (\selectedItem ->
+                    case selectedItem of
+                        SelectedAttribute attribute ->
+                            [ XB2.Share.Data.Labels.addNamespaceToQuestionCode attribute.namespaceCode attribute.codes.questionCode ]
+
+                        SelectedAudience audience ->
+                            Expression.getQuestionCodes audience.expression
+
+                        SelectedAverage average ->
+                            [ AttributeBrowser.getAverageQuestion average
+                                |> (\avgQ ->
+                                        XB2.Share.Data.Labels.addNamespaceToQuestionCode avgQ.namespaceCode avgQ.questionCode
+                                   )
+                            ]
+
+                        SelectedDeviceBasedUsage dbu ->
+                            [ XB2.Share.Data.Labels.addNamespaceToQuestionCode dbu.namespaceCode dbu.questionCode ]
+
+                        SelectedGroup group ->
+                            ModalBrowser.groupFoldr
+                                (\maybeAttr maybeAudience acc ->
+                                    let
+                                        attrCodes =
+                                            Maybe.unwrap []
+                                                (\attr ->
+                                                    [ XB2.Share.Data.Labels.addNamespaceToQuestionCode attr.namespaceCode attr.codes.questionCode ]
+                                                )
+                                                maybeAttr
+
+                                        audienceCodes =
+                                            Maybe.unwrap []
+                                                (\audience ->
+                                                    audience.expression
+                                                        |> Expression.getQuestionCodes
+                                                )
+                                                maybeAudience
+                                    in
+                                    acc ++ attrCodes ++ audienceCodes
+                                )
+                                []
+                                group
+                )
+                addedItems
+        , store = p2Store
+        , datapointCodes =
+            List.fastConcatMap
+                (\selectedItem ->
+                    case selectedItem of
+                        SelectedAttribute attribute ->
+                            [ ( attribute.namespaceCode
+                              , XB2.Share.Data.Labels.addQuestionToShortDatapointCode attribute.codes.questionCode attribute.codes.datapointCode
+                              , attribute.codes.suffixCode
+                              )
+                            ]
+
+                        SelectedAudience audience ->
+                            audience.expression
+                                |> Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+
+                        SelectedAverage _ ->
+                            []
+
+                        SelectedDeviceBasedUsage _ ->
+                            []
+
+                        SelectedGroup group ->
+                            ModalBrowser.groupFoldr
+                                (\maybeAttr maybeAudience acc ->
+                                    let
+                                        attrCodes =
+                                            Maybe.unwrap []
+                                                (\attr ->
+                                                    [ ( attr.namespaceCode
+                                                      , XB2.Share.Data.Labels.addQuestionToShortDatapointCode attr.codes.questionCode attr.codes.datapointCode
+                                                      , attr.codes.suffixCode
+                                                      )
+                                                    ]
+                                                )
+                                                maybeAttr
+
+                                        audienceCodes =
+                                            Maybe.unwrap []
+                                                (\audience ->
+                                                    audience.expression
+                                                        |> Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                                                )
+                                                maybeAudience
+                                    in
+                                    acc ++ attrCodes ++ audienceCodes
+                                )
+                                []
+                                group
+                )
+                addedItems
+        , audiencesAdded =
+            addedItems
+                |> List.filterMap
+                    (\item ->
+                        case item of
+                            SelectedAudience audience ->
+                                Just audience
+
+                            SelectedGroup _ ->
+                                Nothing
+
+                            _ ->
+                                Nothing
+                    )
         }
         p2Store
         model
@@ -2425,7 +2651,7 @@ trackItemsAdded flags route grouping destination addedHow items model store =
                 , audienceId = Nothing
                 , cellsCount = cellsCount
                 , questions = getQuestionsFromCodes <| Expression.getQuestionCodes item.expression
-                , datapointCodes = Expression.getQuestionAndDatapointCodes item.expression
+                , datapointCodes = Expression.getQuestionAndDatapointCodesAndNamespace item.expression
                 , itemLabel = Caption.getFullName item.caption
                 , datasetNames =
                     getDatasetCodesFromAudienceExpression store item.expression
@@ -2441,7 +2667,7 @@ trackItemsAdded flags route grouping destination addedHow items model store =
                 , audienceId = Just audience.id
                 , cellsCount = cellsCount
                 , questions = getQuestionsFromCodes <| Expression.getQuestionCodes audience.expression
-                , datapointCodes = Expression.getQuestionAndDatapointCodes audience.expression
+                , datapointCodes = Expression.getQuestionAndDatapointCodesAndNamespace audience.expression
                 , itemLabel = audience.name
                 , datasetNames =
                     getDatasetCodesFromAudienceExpression store audience.expression
@@ -2821,9 +3047,18 @@ resolveAppliedBaseAudience config route flags p2Store place newBase model maybeR
                                     |> List.map XB2.Share.Store.Platform2.FetchLineage
                         in
                         newModel
-                            |> Cmd.with (getAnalyticsCmd flags route BaseAudienceApplied { place = place } p2Store newModel)
-                            |> updateCellLoader config
-                                (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
+                            |> Cmd.with
+                                (getAnalyticsCmd flags
+                                    route
+                                    BaseAudienceApplied
+                                    { place = place
+                                    , appliedBases = NonemptyList.singleton newBase
+                                    , store = p2Store
+                                    }
+                                    p2Store
+                                    newModel
+                                )
+                            |> updateCellLoader config (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
                             |> Cmd.add (notification config P2Icons.tick notificationString)
                             |> Cmd.addTrigger (config.fetchManyP2 lineageRequests)
 
@@ -2874,7 +3109,17 @@ applyBaseAudiences config route flags p2Store place seed bases model =
             in
             newModel
                 |> updateCrosstabData (updateAudienceCrosstab ACrosstab.deselectAll)
-                |> Cmd.with (getAnalyticsCmd flags route BaseAudienceApplied { place = place } p2Store newModel)
+                |> Cmd.with
+                    (getAnalyticsCmd flags
+                        route
+                        BaseAudienceApplied
+                        { place = place
+                        , appliedBases = bases
+                        , store = p2Store
+                        }
+                        p2Store
+                        newModel
+                    )
                 |> updateCellLoader config
                     (CrosstabCellLoader.interpretCommands config.cellLoaderConfig flags p2Store AudienceIntersect.Table reloadCellsCommands)
                 |> Glue.updateWith Glue.id (confirmDialogIfAddingNewBases config NoOrigin { closeDialogIfNeeded = True })
@@ -5810,6 +6055,20 @@ fetchQuestionsForCrosstab config ( model, cmds ) =
         |> addFetchQuestions
 
 
+fetchAllQuestionsForCrosstab : Config msg -> ( Model, Cmd msg ) -> ( Model, Cmd msg )
+fetchAllQuestionsForCrosstab config ( model, cmds ) =
+    let
+        addFetchQuestions =
+            currentCrosstab model
+                |> ACrosstab.questionCodesWithBases
+                |> List.map (XB2.Share.Store.Platform2.FetchQuestion { showErrorModal = False })
+                |> config.fetchManyP2
+                |> Cmd.addTrigger
+    in
+    ( model, cmds )
+        |> addFetchQuestions
+
+
 updateExport : Config msg -> XB2.Router.Route -> Flags -> Maybe SelectionMap.SelectionMap -> Maybe XBProject -> Posix -> XB2.Share.Store.Platform2.Store -> Model -> ( Model, Cmd msg )
 updateExport config route flags maybeSelectionMap maybeProject date p2Store model =
     case
@@ -6437,9 +6696,29 @@ update config route flags xbStore p2Store msg model =
 
                         _ ->
                             let
+                                maybeProjectFromRoute =
+                                    case route of
+                                        XB2.Router.Project projectId ->
+                                            Maybe.andThen (Store.get xbStore.xbProjects) projectId
+                                                |> Maybe.andThen XBData.getFullyLoadedProject
+
+                                        _ ->
+                                            Nothing
+
                                 analyticsCmd =
                                     metric
-                                        |> Maybe.map (\metric_ -> getAnalyticsCmd flags route HeatmapApplied { metric = metric_ } p2Store model)
+                                        |> Maybe.map
+                                            (\metric_ ->
+                                                getAnalyticsCmd flags
+                                                    route
+                                                    HeatmapApplied
+                                                    { metric = metric_
+                                                    , store = p2Store
+                                                    , project = maybeProjectFromRoute
+                                                    }
+                                                    p2Store
+                                                    model
+                                            )
                                         |> Maybe.withDefault Cmd.none
                             in
                             { model | heatmapMetric = metric }
@@ -6455,6 +6734,7 @@ update config route flags xbStore p2Store msg model =
                                 AudienceIntersect.Heatmap
                             )
                         |> Cmd.addTrigger config.closeModal
+                        |> fetchAllQuestionsForCrosstab config
 
                 CancelFullTableLoad ->
                     case currentCrosstabData model |> .cellLoaderModel |> CrosstabCellLoader.getAfterAction of
@@ -6590,7 +6870,7 @@ update config route flags xbStore p2Store msg model =
                         model
 
                 SaveProjectAsNew name ->
-                    model
+                    { model | projectHasJustBeenSavedAsNew = True }
                         |> Cmd.withTrigger
                             (config.createXBProject
                                 (getNewProjectFromCrosstab flags name model)

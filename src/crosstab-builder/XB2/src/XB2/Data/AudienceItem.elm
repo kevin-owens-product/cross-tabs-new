@@ -9,6 +9,7 @@ module XB2.Data.AudienceItem exposing
     , getDefinition
     , getId
     , getIdString
+    , getNamespaceAndQuestionCodes
     , isAverage
     , isAverageOrDbu
     , setCaption
@@ -29,6 +30,7 @@ import XB2.Data.AudienceItemId as AudienceItemId
 import XB2.Data.Average as Average
 import XB2.Data.Caption as Caption
 import XB2.Data.DeviceBasedUsage as DeviceBasedUsage
+import XB2.Share.Data.Labels as Labels
 
 
 {-| AudienceItem is the row or column of a crosstab. An AudienceItem definition can
@@ -149,6 +151,19 @@ generateNewId (AudienceItem data) seed =
 getId : AudienceItem -> AudienceItemId.AudienceItemId
 getId (AudienceItem { id }) =
     id
+
+
+getNamespaceAndQuestionCodes : AudienceItem -> List Labels.NamespaceAndQuestionCode
+getNamespaceAndQuestionCodes (AudienceItem { definition }) =
+    case definition of
+        Data.Expression expression ->
+            AudienceExpression.getQuestionCodes expression
+
+        Data.Average average ->
+            [ Average.getQuestionCode average ]
+
+        Data.DeviceBasedUsage dbu ->
+            [ DeviceBasedUsage.getQuestionCode dbu ]
 
 
 getIdString : AudienceItem -> String

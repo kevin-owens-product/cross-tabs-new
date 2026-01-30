@@ -467,6 +467,7 @@ sharingNoteMaxLength =
 
 type alias ShareProjectData =
     { project : XBProject
+    , place : Place.Place
     , originalSharedWithEmails : Maybe (NonEmpty SharingEmail)
     , originalSharedWithOrgs : Maybe (NonEmpty XB2.Share.Data.Platform2.OrganisationId)
     , emailsForSharing : List SharingEmail
@@ -639,7 +640,7 @@ type alias Config msg =
     , confirmDeleteProject : XBProject -> msg
     , unshareMe : XBProject -> msg
     , shareProject : XBProject -> msg
-    , shareAndCopyLink : XBProject -> msg
+    , shareAndCopyLink : Place.Place -> XBProject -> msg
     , createFolder : List XBProject -> String -> msg
     , moveToFolder : Maybe XBFolder -> XBProject -> msg
 
@@ -985,8 +986,8 @@ initSaveProjectAsNew name =
         }
 
 
-initShareProject : Config msg -> Flags -> XBProject -> ( Modal, Cmd msg )
-initShareProject config flags project =
+initShareProject : Config msg -> Flags -> Place.Place -> XBProject -> ( Modal, Cmd msg )
+initShareProject config flags place project =
     let
         originalSharedWithEmails : Maybe (NonEmpty SharingEmail)
         originalSharedWithEmails =
@@ -1008,6 +1009,7 @@ initShareProject config flags project =
     in
     ( ShareProject
         { project = project
+        , place = place
         , originalSharedWithEmails = originalSharedWithEmails
         , originalSharedWithOrgs =
             case project.shared of
@@ -3023,7 +3025,7 @@ sharedEmailInputId =
 
 
 shareProjectContents : Config msg -> Flags -> ShareProjectData -> List (Html msg)
-shareProjectContents config flags ({ project, originalSharedWithEmails, originalSharedWithOrgs, shareWithOrgChecked, state, hasChanges, emailsForSharing } as data) =
+shareProjectContents config flags ({ project, originalSharedWithEmails, originalSharedWithOrgs, shareWithOrgChecked, state, hasChanges, emailsForSharing, place } as data) =
     let
         getOnlyValidEmails : NonEmpty SharingEmail -> Maybe (NonEmpty CrosstabUser)
         getOnlyValidEmails list =
@@ -3402,7 +3404,7 @@ shareProjectContents config flags ({ project, originalSharedWithEmails, original
                 [ Html.button
                     [ WeakCss.addMany [ "share-modal", "footer", "link-share", "button" ] moduleClass
                         |> WeakCss.withStates [ ( "primary", readOnly ) ]
-                    , Events.onClick <| config.shareAndCopyLink project
+                    , Events.onClick <| config.shareAndCopyLink place project
                     ]
                     [ XB2.Share.Icons.icon [] P2Icons.link
                     , Html.text "Copy link"

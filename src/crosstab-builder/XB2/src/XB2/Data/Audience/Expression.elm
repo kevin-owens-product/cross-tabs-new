@@ -11,6 +11,8 @@ module XB2.Data.Audience.Expression exposing
     , foldr
     , getNamespaceCodes
     , getQuestionAndDatapointCodes
+    , getQuestionAndDatapointCodesAndNamespace
+    , getQuestionAndDatapointCodesAndNamespaceAndSuffixes
     , getQuestionCodes
     , getSuffixCodes
     , intersectionMany
@@ -28,6 +30,7 @@ import XB2.Data.Suffix as Suffix
 import XB2.Data.Zod.Optional as Optional
 import XB2.Share.Data.Id as Id
 import XB2.Share.Data.Labels as Labels
+import XB2.Share.Gwi.List exposing (fastConcat)
 
 
 {-| Logic operator used for expression interconnections. In layman's terms:
@@ -534,6 +537,50 @@ getQuestionAndDatapointCodes expression =
         (\leaf acc -> NonEmpty.toList leaf.questionAndDatapointCodes ++ acc)
         []
         expression
+
+
+getQuestionAndDatapointCodesAndNamespace : Expression -> List ( Namespace.Code, Labels.QuestionAndDatapointCode )
+getQuestionAndDatapointCodesAndNamespace expression =
+    foldr
+        (\leaf acc -> NonEmpty.toList (NonEmpty.map (\qAndDp -> ( Tuple.first <| Labels.splitQuestionCode leaf.namespaceAndQuestionCode, qAndDp )) leaf.questionAndDatapointCodes) ++ acc)
+        []
+        expression
+
+
+getQuestionAndDatapointCodesAndNamespaceAndSuffixes : Expression -> List ( Namespace.Code, Labels.QuestionAndDatapointCode, Maybe Suffix.Code )
+getQuestionAndDatapointCodesAndNamespaceAndSuffixes expression =
+    foldr
+        (\leaf acc ->
+            NonEmpty.toList
+                (NonEmpty.map
+                    (\qAndDp ->
+                        case leaf.suffixCodes of
+                            Optional.Present suffixes ->
+                                NonEmpty.toList
+                                    (NonEmpty.map
+                                        (\sufCode ->
+                                            ( Tuple.first <| Labels.splitQuestionCode leaf.namespaceAndQuestionCode
+                                            , qAndDp
+                                            , Just sufCode
+                                            )
+                                        )
+                                        suffixes
+                                    )
+
+                            Optional.Undefined ->
+                                [ ( Tuple.first <| Labels.splitQuestionCode leaf.namespaceAndQuestionCode
+                                  , qAndDp
+                                  , Nothing
+                                  )
+                                ]
+                    )
+                    leaf.questionAndDatapointCodes
+                )
+                ++ acc
+        )
+        []
+        expression
+        |> fastConcat
 
 
 getNamespaceCodes : Expression -> List Namespace.Code

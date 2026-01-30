@@ -13,7 +13,6 @@ module XB2.Analytics exposing
     , OpenAttributeBrowserFor(..)
     , ProjectEventParams
     , RespondentNumberType(..)
-    , UnsavedProjectEventParams
     , prepareBaseForTracking
     , trackEvent
     , trackEvents
@@ -25,26 +24,26 @@ import Json.Encode as Encode exposing (Value)
 import List.Extra as List
 import List.NonEmpty as NonemptyList
 import Maybe.Extra as Maybe
-import RemoteData
+import Set.Any as AnySet
 import String.Extra as String
 import XB2.Data as XBData
     exposing
         ( AudienceDefinition
-        , XBProject
         , XBProjectFullyLoaded
         )
-import XB2.Data.Audience as Audience
+import XB2.Data.Audience as Audience exposing (Audience)
 import XB2.Data.Audience.Expression as Expression
 import XB2.Data.AudienceCrosstab exposing (CrosstabTable, Direction(..))
 import XB2.Data.AudienceCrosstab.Sort as XBSort
 import XB2.Data.AudienceItem as AudienceItem exposing (AudienceItem)
-import XB2.Data.AudienceItemId exposing (AudienceItemId)
+import XB2.Data.AudienceItemId as AudienceItemId exposing (AudienceItemId)
 import XB2.Data.BaseAudience as BaseAudience exposing (BaseAudience)
 import XB2.Data.Calc.AudienceIntersect as AudienceIntersect exposing (XBQueryError)
 import XB2.Data.Caption as Caption exposing (Caption)
 import XB2.Data.Crosstab as Crosstab
 import XB2.Data.Metric as Metric exposing (Metric(..))
 import XB2.Data.MetricsTransposition exposing (MetricsTransposition, metricAnalyticsName)
+import XB2.Data.Namespace as Namespace
 import XB2.Data.Suffix as Suffix
 import XB2.Data.UndoEvent as UndoEvent exposing (UndoEvent)
 import XB2.Data.Zod.Optional as Optional
@@ -70,6 +69,7 @@ import XB2.Share.Data.Labels
         , Wave
         )
 import XB2.Share.Gwi.Http exposing (Error)
+import XB2.Share.Gwi.List as List
 import XB2.Share.Platform2.Grouping exposing (Grouping(..))
 import XB2.Share.Store.Platform2
 import XB2.Share.Store.Utils
@@ -136,13 +136,6 @@ type alias ProjectEventParams extra =
     }
 
 
-type alias UnsavedProjectEventParams extra =
-    { extra
-        | project : XBProject
-        , store : XB2.Share.Store.Platform2.Store
-    }
-
-
 type alias Counts =
     { audiencesCount : Int
     , questionsCount : Int
@@ -164,7 +157,13 @@ type Event
         , colCount : Int
         , cellCount : Int
         }
-    | BaseAudienceApplied (EventParams { place : Place })
+    | BaseAudienceApplied
+        (EventParams
+            { place : Place
+            , appliedBases : NonemptyList.NonEmpty BaseAudience
+            , store : XB2.Share.Store.Platform2.Store
+            }
+        )
     | BaseSelected
         { appliedBases : List BaseAudience
         , selectedBases : List BaseAudience
@@ -190,7 +189,7 @@ type Event
         , audienceId : Maybe Audience.Id
         , cellsCount : Int
         , questions : List Question
-        , datapointCodes : List QuestionAndDatapointCode
+        , datapointCodes : List ( Namespace.Code, QuestionAndDatapointCode )
         , itemLabel : String
         , datasetNames : List String
         }
@@ -218,6 +217,11 @@ type Event
             , appendedCount : Int
             , counts : Counts
             , datasetNames : List String
+            , namespaceCodes : List Namespace.Code
+            , questionCodes : List NamespaceAndQuestionCode
+            , store : XB2.Share.Store.Platform2.Store
+            , datapointCodes : List ( Namespace.Code, QuestionAndDatapointCode, Maybe Suffix.Code )
+            , audiencesAdded : List Audience
             }
         )
     | GroupDuplicated
@@ -232,6 +236,10 @@ type Event
             , newExpression : Expression.Expression
             , counts : Counts
             , datasetNames : List String
+            , namespaceCodes : List Namespace.Code
+            , questionCodes : List NamespaceAndQuestionCode
+            , datapointCodes : List ( Namespace.Code, QuestionAndDatapointCode, Maybe Suffix.Code )
+            , store : XB2.Share.Store.Platform2.Store
             }
         )
     | BasesEdited
@@ -250,6 +258,10 @@ type Event
             , counts : Counts
             , affixedFrom : AffixedFrom
             , datasetNames : List String
+            , namespaceCodes : List Namespace.Code
+            , questionCodes : List NamespaceAndQuestionCode
+            , datapointCodes : List ( Namespace.Code, QuestionAndDatapointCode, Maybe Suffix.Code )
+            , store : XB2.Share.Store.Platform2.Store
             }
         )
     | GroupsAddedByEditToTable
@@ -259,6 +271,11 @@ type Event
             , groupingOperator : Grouping
             , counts : Counts
             , datasetNames : List String
+            , namespaceCodes : List Namespace.Code
+            , questionCodes : List NamespaceAndQuestionCode
+            , store : XB2.Share.Store.Platform2.Store
+            , datapointCodes : List ( Namespace.Code, QuestionAndDatapointCode, Maybe Suffix.Code )
+            , audiencesAdded : List Audience
             }
         )
     | ProjectSaved (ProjectEventParams { newlyCreated : Bool, questions : List Question })
@@ -268,7 +285,6 @@ type Event
     | ProjectCreationStarted
     | ProjectRenamed (ProjectEventParams {})
     | ProjectOpened (ProjectEventParams {})
-    | UnsavedProjectOpened (UnsavedProjectEventParams {})
     | ProjectShared (ProjectEventParams { questions : List Question })
     | Export ExportData
     | GroupRenamed
@@ -279,7 +295,13 @@ type Event
             }
         )
     | KnowledgeBaseOpened String String
-    | HeatmapApplied (EventParams { metric : Metric })
+    | HeatmapApplied
+        (EventParams
+            { metric : Metric
+            , project : Maybe XBProjectFullyLoaded
+            , store : XB2.Share.Store.Platform2.Store
+            }
+        )
     | MetricsChosen (EventParams { metrics : AssocSet.Set Metric })
     | UndoApplied (EventParams { undoEvent : UndoEvent })
     | RedoApplied (EventParams { undoEvent : UndoEvent })
@@ -346,7 +368,12 @@ type Event
     | ManagementPageDragAndDropUsed
     | ManagementPageOpened { splashScreen : Bool }
     | AffixAttributesOrAudiences AffixedFrom
-    | CopyLink { projectId : XBData.XBProjectId, projectName : String }
+    | CopyLink
+        { projectId : XBData.XBProjectId
+        , projectName : String
+        , project : Maybe XBProjectFullyLoaded
+        , store : XB2.Share.Store.Platform2.Store
+        }
     | RespondentNumberChanged
         (EventParams
             { respondentNumberType :
@@ -547,7 +574,7 @@ prepareBaseForTracking baseAudience =
 
 
 sharedEventParameters : EventParams a -> List ( String, Encode.Value )
-sharedEventParameters { waves, locations, crosstab, bases } =
+sharedEventParameters { waves, locations, crosstab } =
     let
         regions : List String
         regions =
@@ -561,19 +588,13 @@ sharedEventParameters { waves, locations, crosstab, bases } =
     , ( "cols_count", Encode.int <| Crosstab.colCount crosstab )
     , ( "cells_count", Encode.int <| Crosstab.size crosstab )
     , ( "waves_count", Encode.int <| List.length waves )
-    , ( "waves", commaSeparated .name waves )
-    , ( "waves_list", list .name waves )
+    , ( "waves", list (.code >> XB2.Share.Data.Id.unwrap) waves )
     , ( "locations_count", Encode.int <| List.length locations )
-    , ( "locations", commaSeparated .name locations )
-    , ( "locations_list", list .name locations )
+    , ( "locations", list .name locations )
     , ( "years_count", Encode.int <| List.length years )
-    , ( "years", commaSeparated identity years )
-    , ( "years_list", list identity years )
+    , ( "years", list identity years )
     , ( "regions_count", Encode.int <| List.length regions )
-    , ( "regions", commaSeparated identity regions )
-    , ( "regions_list", list identity regions )
-    , ( "bases", Encode.list encodeBaseAudienceCaption bases )
-    , ( "base_n", Encode.int (List.length bases) )
+    , ( "regions", list identity regions )
     ]
 
 
@@ -602,6 +623,111 @@ sharedProjectEventParams flags place project store =
 
         baseEncode base =
             Encode.string (base.name ++ " " ++ base.subtitle)
+
+        rowsAndCols =
+            (project.data.rows ++ project.data.columns)
+                |> List.map .definition
+
+        basesExpressions =
+            project.data.bases
+                |> NonemptyList.toList
+                |> List.map .expression
+
+        cellsQuestionCodes =
+            XBData.getProjectRowAndColumnQuestionCodes project
+
+        cellsQuestionCodesForAnalytics =
+            cellsQuestionCodes
+                |> AnySet.toList
+                |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+        cellsQuestions =
+            cellsQuestionCodes
+                |> AnySet.toList
+                |> List.map (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                |> Maybe.combine
+
+        cellQuestionNames =
+            cellsQuestions
+                |> Maybe.unwrap []
+                    (List.map
+                        (\question ->
+                            (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                            )
+                                ++ " - "
+                                ++ question.name
+                        )
+                    )
+
+        cellsAttributesCodes =
+            rowsAndCols
+                |> List.fastConcatMap XBData.definitionNamespaceQuestionAndSuffixCodes
+                |> List.unique
+                |> List.map
+                    (\( nsCode, qCode, mSuffCode ) ->
+                        Namespace.codeToString nsCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap qCode
+                            ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                    )
+
+        namespacesCells =
+            cellsQuestionCodes
+                |> AnySet.toList
+                |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+                |> List.unique
+
+        cellsAudiencesIds =
+            (project.data.rows ++ project.data.columns)
+                |> List.map .id
+
+        basesQuestionCodes =
+            basesExpressions
+                |> List.fastConcatMap Expression.getQuestionCodes
+
+        basesQuestionCodesForAnalytics =
+            basesQuestionCodes
+                |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+        basesQuestions =
+            basesQuestionCodes
+                |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                |> Maybe.withDefault []
+
+        basesQuestionsNames =
+            basesQuestions
+                |> List.unique
+                |> List.map
+                    (\question ->
+                        (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                            |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                        )
+                            ++ " - "
+                            ++ question.name
+                    )
+
+        basesAttributesCodes =
+            basesExpressions
+                |> List.unique
+                |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                |> List.map
+                    (\( nsCode, qCode, mSuffCode ) ->
+                        Namespace.codeToString nsCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap qCode
+                            ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                    )
+
+        basesAudiencesIds =
+            project.data.bases
+                |> NonemptyList.map .id
+
+        namespacesBases =
+            basesQuestionCodes
+                |> List.map XB2.Share.Data.Labels.parseNamespaceCode
     in
     encodeShared project.data.ownerId project.shared
         ++ [ ( "project_name", Encode.string project.name )
@@ -612,91 +738,28 @@ sharedProjectEventParams flags place project store =
            , ( "cols_count", Encode.int colCount )
            , ( "cells_count", Encode.int <| rowCount * colCount )
            , ( "waves_count", Encode.int <| List.length waves )
-           , ( "waves", commaSeparated .name waves )
-           , ( "waves_list", list .name waves )
+           , ( "waves", list (.code >> XB2.Share.Data.Id.unwrap) waves )
            , ( "locations_count", Encode.int <| List.length locations )
-           , ( "locations", commaSeparated .name locations )
-           , ( "locations_list", list .name locations )
+           , ( "locations", list .name locations )
            , ( "years_count", Encode.int <| List.length years )
-           , ( "years", commaSeparated identity years )
-           , ( "years_list", list identity years )
+           , ( "years", list identity years )
            , ( "regions_count", Encode.int <| List.length regions )
-           , ( "regions", commaSeparated identity regions )
-           , ( "regions_list", list identity regions )
+           , ( "regions", list identity regions )
            , ( "bases", NonemptyList.encodeList baseEncode project.data.bases )
            , ( "message", Encode.bool <| not <| String.isEmpty project.sharingNote )
            , ( "message_length", Encode.int <| String.length project.sharingNote )
            , ( "is_owner", Encode.bool <| project.data.ownerId == flags.user.id )
+           , ( "cells_question_codes", Encode.list Encode.string (List.unique cellsQuestionCodesForAnalytics) )
+           , ( "cells_questions_names", Encode.list Encode.string cellQuestionNames )
+           , ( "cells_attributes_codes", Encode.list Encode.string cellsAttributesCodes )
+           , ( "cells_audiences_ids", Encode.list Encode.string cellsAudiencesIds )
+           , ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+           , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+           , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+           , ( "bases_audiences_ids", NonemptyList.encodeList Encode.string basesAudiencesIds )
+           , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+           , ( "namespaces_cells", Encode.list Namespace.encodeCode namespacesCells )
            ]
-
-
-unsavedProjectEventParams : Flags -> Place -> XBProject -> XB2.Share.Store.Platform2.Store -> List ( String, Encode.Value )
-unsavedProjectEventParams flags place project store =
-    (project.data
-        |> RemoteData.map
-            (\data ->
-                let
-                    locations =
-                        XB2.Share.Store.Utils.getByIds store.locations data.locationCodes
-
-                    waves =
-                        XB2.Share.Store.Utils.getByIds store.waves data.waveCodes
-
-                    regions : List String
-                    regions =
-                        regionsFromLocations locations
-
-                    years : List String
-                    years =
-                        yearsFromWaves waves
-
-                    rowCount =
-                        List.length data.rows
-
-                    colCount =
-                        List.length data.columns
-
-                    baseEncode base =
-                        Encode.string (base.name ++ " " ++ base.subtitle)
-
-                    isOwner : Bool
-                    isOwner =
-                        RemoteData.unwrap False (.ownerId >> (==) flags.user.id) project.data
-                in
-                encodeShared data.ownerId project.shared
-                    ++ [ ( "bases", NonemptyList.encodeList baseEncode data.bases )
-                       , ( "waves_count", Encode.int <| List.length waves )
-                       , ( "waves", commaSeparated .name waves )
-                       , ( "waves_list", list .name waves )
-                       , ( "locations_count", Encode.int <| List.length locations )
-                       , ( "locations", commaSeparated .name locations )
-                       , ( "locations_list", list .name locations )
-                       , ( "years_count", Encode.int <| List.length years )
-                       , ( "years", commaSeparated identity years )
-                       , ( "years_list", list identity years )
-                       , ( "rows_count", Encode.int rowCount )
-                       , ( "cols_count", Encode.int colCount )
-                       , ( "cells_count", Encode.int <| rowCount * colCount )
-                       , ( "regions_count", Encode.int <| List.length regions )
-                       , ( "regions", commaSeparated identity regions )
-                       , ( "regions_list", list identity regions )
-                       , ( "is_owner", Encode.bool isOwner )
-                       ]
-            )
-        |> RemoteData.withDefault []
-    )
-        ++ [ ( "project_name", Encode.string "new" )
-           , ( "crosstab_id", Encode.string "N/A" )
-           , ( "project_created_date", Encode.string "N/A" )
-           , ( "message", Encode.bool False )
-           , ( "message_length", Encode.int 0 )
-           , placeAttr place
-           ]
-
-
-getNameFromItem : AudienceItem -> String
-getNameFromItem =
-    Caption.getName << AudienceItem.getCaption
 
 
 trackEvent : Flags -> Route -> Place -> Event -> Cmd msg
@@ -889,10 +952,69 @@ encodeEvent flags route place event =
             )
 
         BaseAudienceApplied ({ extraParams } as eventParams) ->
+            let
+                basesQuestionCodes =
+                    extraParams.appliedBases
+                        |> NonemptyList.toList
+                        |> List.map BaseAudience.getExpression
+                        |> List.fastConcatMap Expression.getQuestionCodes
+
+                baseAudienceIds =
+                    extraParams.appliedBases
+                        |> NonemptyList.toList
+                        |> List.map BaseAudience.getId
+
+                basesQuestionCodesForAnalytics =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                basesQuestions =
+                    basesQuestionCodes
+                        |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code extraParams.store)
+                        |> Maybe.withDefault []
+
+                basesQuestionsNames =
+                    basesQuestions
+                        |> List.unique
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                basesAttributesCodes =
+                    extraParams.appliedBases
+                        |> NonemptyList.toList
+                        |> List.map BaseAudience.getExpression
+                        |> List.unique
+                        |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                namespacesBases =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+            in
             ( "P2 - Crosstabs - Base Applied"
             , Encode.object <|
-                placeAttr extraParams.place
-                    :: sharedEventParameters eventParams
+                [ ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+                , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+                , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+                , ( "bases_audiences_ids", Encode.list (AudienceItemId.toString >> Encode.string) baseAudienceIds )
+                , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , placeAttr extraParams.place
+                ]
+                    ++ sharedEventParameters eventParams
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
@@ -934,13 +1056,36 @@ encodeEvent flags route place event =
 
         ItemAdded { destination, audienceId, itemType, addedHow, cellsCount, questions, datapointCodes, datasetNames, itemLabel } ->
             let
-                questionCodes : List NamespaceAndQuestionCode
+                questionCodes : List String
                 questionCodes =
-                    List.map .longCode questions
+                    List.map (.longCode >> XB2.Share.Data.Labels.splitQuestionCode) questions
+                        |> List.map
+                            (\( namespaceCode, questionCode ) ->
+                                Namespace.codeToString namespaceCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap questionCode
+                            )
+
+                namespaces : List Namespace.Code
+                namespaces =
+                    List.map .namespaceCode questions
 
                 questionNames : List String
                 questionNames =
-                    List.map .name questions
+                    questions
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                attributeCodes : List String
+                attributeCodes =
+                    datapointCodes
+                        |> List.map (\( nsCode, qAndDCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qAndDCode)
             in
             ( "P2 - Crosstabs - Item Added"
             , Encode.object
@@ -952,12 +1097,12 @@ encodeEvent flags route place event =
                  , ( "section", encodeSectionFromDestination destination )
                  , ( "item_type", Encode.string itemType )
                  , ( "cells_count", Encode.int cellsCount )
-                 , ( "question_code", questionCodes |> List.map XB2.Share.Data.Id.unwrap |> commaSeparated identity )
-                 , ( "question_names_list", Encode.list Encode.string questionNames )
-                 , ( "question_code_list", questionCodes |> List.map XB2.Share.Data.Id.unwrap |> list identity )
-                 , ( "data_point_code", datapointCodes |> List.map XB2.Share.Data.Id.unwrap |> commaSeparated identity )
-                 , ( "data_point_code_list", datapointCodes |> List.map XB2.Share.Data.Id.unwrap |> list identity )
-                 , ( "data_sets", Encode.list Encode.string datasetNames )
+                 , ( "question_codes", commaSeparated identity questionCodes )
+                 , ( "question_names", Encode.list Encode.string questionNames )
+                 , ( "attributes_codes", list identity attributeCodes )
+                 , ( "datasets", Encode.list Encode.string datasetNames )
+                 , ( "namespaces", Encode.list Namespace.encodeCode namespaces )
+                 , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
                  ]
                     ++ encodeCrosstabIdAttributeFromRoute route
                 )
@@ -967,11 +1112,11 @@ encodeEvent flags route place event =
             let
                 ( avgQuestion, dtp ) =
                     case average of
-                        AttributeBrowser.AvgWithoutSuffixes code ->
-                            ( code, Encode.string "n/a" )
+                        AttributeBrowser.AvgWithoutSuffixes question ->
+                            ( question, "n/a" )
 
-                        AttributeBrowser.AvgWithSuffixes code { datapointCode } ->
-                            ( code, XB2.Share.Data.Id.encode datapointCode )
+                        AttributeBrowser.AvgWithSuffixes question { datapointCode } ->
+                            ( question, Namespace.codeToString question.namespaceCode ++ "." ++ XB2.Share.Data.Id.unwrap datapointCode )
             in
             ( "P2 - Crosstabs - Item Added"
             , Encode.object
@@ -980,10 +1125,25 @@ encodeEvent flags route place event =
                  , ( "section", encodeSectionFromDestination destination )
                  , ( "item_type", Encode.string "average" )
                  , ( "cells_count", Encode.int cellsCount )
-                 , ( "question_code", XB2.Share.Data.Id.encode avgQuestion.questionCode )
-                 , ( "question_name", Encode.string <| AttributeBrowser.getAverageQuestionLabel average )
-                 , ( "data_point_code", dtp )
-                 , ( "data_sets", Encode.list Encode.string datasetNames )
+                 , ( "question_codes"
+                   , Encode.string <|
+                        Namespace.codeToString avgQuestion.namespaceCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap avgQuestion.questionCode
+                   )
+                 , ( "question_names"
+                   , Encode.string <|
+                        (Namespace.codeToString avgQuestion.namespaceCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap avgQuestion.questionCode
+                        )
+                            ++ " - "
+                            ++ AttributeBrowser.getAverageQuestionLabel average
+                   )
+                 , ( "attribute_codes", Encode.string dtp )
+                 , ( "datasets", Encode.list Encode.string datasetNames )
+                 , ( "namespaces", Namespace.encodeCode avgQuestion.namespaceCode )
+                 , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
                  ]
                     ++ encodeCrosstabIdAttributeFromRoute route
                 )
@@ -997,9 +1157,26 @@ encodeEvent flags route place event =
                  , ( "section", encodeSectionFromDestination destination )
                  , ( "item_type", Encode.string "device" )
                  , ( "cells_count", Encode.int cellsCount )
-                 , ( "question_code", XB2.Share.Data.Id.encode deviceBasedUsage.questionCode )
-                 , ( "question_name", Encode.string deviceBasedUsage.name )
-                 , ( "data_sets", Encode.list Encode.string datasetNames )
+                 , ( "question_codes"
+                   , Encode.string <|
+                        Namespace.codeToString deviceBasedUsage.namespaceCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap deviceBasedUsage.questionCode
+                   )
+                 , ( "question_names"
+                   , Encode.string <|
+                        (Namespace.codeToString deviceBasedUsage.namespaceCode
+                            ++ "."
+                            ++ XB2.Share.Data.Id.unwrap deviceBasedUsage.questionCode
+                        )
+                            ++ " - "
+                            ++ deviceBasedUsage.name
+                   )
+                 , ( "datasets", Encode.list Encode.string datasetNames )
+                 , ( "attributes_codes", Encode.null )
+                 , ( "datasets", Encode.list Encode.string datasetNames )
+                 , ( "namespaces", Namespace.encodeCode deviceBasedUsage.namespaceCode )
+                 , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
                  ]
                     ++ encodeCrosstabIdAttributeFromRoute route
                 )
@@ -1031,19 +1208,59 @@ encodeEvent flags route place event =
             )
 
         GroupAddedAsNew ({ extraParams } as sharedParams) ->
+            let
+                questionNames =
+                    extraParams.questionCodes
+                        |> List.map
+                            (\question ->
+                                XB2.Share.Store.Platform2.getQuestionMaybe question extraParams.store
+                                    |> Maybe.unwrap ""
+                                        (\questionFromStore ->
+                                            (XB2.Share.Data.Labels.splitQuestionCode questionFromStore.longCode
+                                                |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                            )
+                                                ++ " - "
+                                                ++ questionFromStore.name
+                                        )
+                            )
+
+                questionCodesForAnalytics =
+                    extraParams.questionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsAttributesCodes =
+                    extraParams.datapointCodes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+            in
             ( "P2 - Crosstabs - Group Added"
             , Encode.object <|
-                ( "added_to", encodeDestination extraParams.destination )
-                    :: ( "added_how", encodeAddedHow AddedAsNew )
-                    :: ( "appended_by", Encode.string "" )
-                    :: ( "appended_count", Encode.int extraParams.appendedCount )
-                    :: ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
-                    :: ( "datapoints_count", Encode.int extraParams.counts.datapointsCount )
-                    :: ( "questions_count", Encode.int extraParams.counts.questionsCount )
-                    :: ( "operator", encodeGrouping extraParams.groupingOperator )
-                    :: ( "data_sets", Encode.list Encode.string extraParams.datasetNames )
-                    :: placeAttr place
-                    :: sharedEventParameters sharedParams
+                [ ( "added_to", encodeDestination extraParams.destination )
+                , ( "added_how", encodeAddedHow AddedAsNew )
+                , ( "appended_by", Encode.string "" )
+                , ( "appended_count", Encode.int extraParams.appendedCount )
+                , ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
+                , ( "attributes_codes_count", Encode.int extraParams.counts.datapointsCount )
+                , ( "questions_count", Encode.int extraParams.counts.questionsCount )
+                , ( "operator", encodeGrouping extraParams.groupingOperator )
+                , ( "datasets", Encode.list Encode.string extraParams.datasetNames )
+                , ( "namespaces", Encode.list Namespace.encodeCode (List.unique extraParams.namespaceCodes) )
+                , placeAttr place
+                , ( "rows_count", Encode.int <| Crosstab.rowCount sharedParams.crosstab )
+                , ( "cols_count", Encode.int <| Crosstab.colCount sharedParams.crosstab )
+                , ( "cells_count", Encode.int <| Crosstab.size sharedParams.crosstab )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "audiences_ids", Encode.list (.id >> Audience.encodeId) extraParams.audiencesAdded )
+                , ( "question_codes", Encode.list Encode.string (List.unique questionCodesForAnalytics) )
+                , ( "question_names", Encode.list Encode.string (List.unique questionNames) )
+                , ( "attributes_codes", Encode.list Encode.string (List.unique cellsAttributesCodes) )
+                ]
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
@@ -1058,20 +1275,60 @@ encodeEvent flags route place event =
             )
 
         GroupAddedByAffixToBase ({ extraParams } as sharedParams) ->
+            let
+                questionNames =
+                    extraParams.questionCodes
+                        |> List.map
+                            (\question ->
+                                XB2.Share.Store.Platform2.getQuestionMaybe question extraParams.store
+                                    |> Maybe.unwrap ""
+                                        (\questionFromStore ->
+                                            (XB2.Share.Data.Labels.splitQuestionCode questionFromStore.longCode
+                                                |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                            )
+                                                ++ " - "
+                                                ++ questionFromStore.name
+                                        )
+                            )
+
+                questionCodesForAnalytics =
+                    extraParams.questionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsAttributesCodes =
+                    extraParams.datapointCodes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+            in
             ( "P2 - Crosstabs - Group Added"
             , Encode.object <|
-                ( "added_to", encodeDestination CrosstabBase )
-                    :: ( "appended_count", Encode.int 1 )
-                    :: ( "added_how", encodeAddedHow AddedByAppend )
-                    :: ( "appended_by", encodeRootLogicOperator extraParams.newExpression )
-                    :: ( "operator", encodeGrouping extraParams.groupingOperator )
-                    :: ( "questions_count", Encode.int extraParams.counts.questionsCount )
-                    :: ( "datapoints_count", Encode.int extraParams.counts.datapointsCount )
-                    :: ( "averages_count", Encode.int extraParams.counts.averagesCount )
-                    :: ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
-                    :: ( "data_sets", Encode.list Encode.string extraParams.datasetNames )
-                    :: placeAttr Place.CrosstabBuilderBase
-                    :: sharedEventParameters sharedParams
+                [ ( "added_to", encodeDestination CrosstabBase )
+                , ( "appended_count", Encode.int 1 )
+                , ( "added_how", encodeAddedHow AddedByAppend )
+                , ( "appended_by", encodeRootLogicOperator extraParams.newExpression )
+                , ( "operator", encodeGrouping extraParams.groupingOperator )
+                , ( "questions_count", Encode.int extraParams.counts.questionsCount )
+                , ( "attributes_codes_count", Encode.int extraParams.counts.datapointsCount )
+                , ( "averages_count", Encode.int extraParams.counts.averagesCount )
+                , ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
+                , ( "datasets", Encode.list Encode.string extraParams.datasetNames )
+                , ( "namespaces", Encode.list Namespace.encodeCode extraParams.namespaceCodes )
+                , placeAttr place
+                , ( "rows_count", Encode.int <| Crosstab.rowCount sharedParams.crosstab )
+                , ( "cols_count", Encode.int <| Crosstab.colCount sharedParams.crosstab )
+                , ( "cells_count", Encode.int <| Crosstab.size sharedParams.crosstab )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "audiences_ids", Encode.list Encode.string [] )
+                , ( "question_codes", Encode.list Encode.string (List.unique questionCodesForAnalytics) )
+                , ( "question_names", Encode.list Encode.string (List.unique questionNames) )
+                , ( "attributes_codes", Encode.list Encode.string (List.unique cellsAttributesCodes) )
+                ]
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
@@ -1082,44 +1339,121 @@ encodeEvent flags route place event =
                     :: ( "edited_count", Encode.int 1 )
                     :: ( "edited_by", encodeRootLogicOperator extraParams.newExpression )
                     :: ( "questions_count", Encode.int extraParams.counts.questionsCount )
-                    :: ( "datapoints_count", Encode.int extraParams.counts.datapointsCount )
+                    :: ( "attributes_codes_count", Encode.int extraParams.counts.datapointsCount )
                     :: ( "averages_count", Encode.int extraParams.counts.averagesCount )
                     :: ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
-                    :: ( "data_sets", Encode.list Encode.string extraParams.datasetNames )
+                    :: ( "datasets", Encode.list Encode.string extraParams.datasetNames )
                     :: placeAttr Place.CrosstabBuilderBase
                     :: sharedEventParameters sharedParams
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
         GroupsAddedByAffixToTable ({ extraParams } as sharedParams) ->
+            let
+                questionNames =
+                    extraParams.questionCodes
+                        |> List.map
+                            (\question ->
+                                XB2.Share.Store.Platform2.getQuestionMaybe question extraParams.store
+                                    |> Maybe.unwrap ""
+                                        (\questionFromStore ->
+                                            (XB2.Share.Data.Labels.splitQuestionCode questionFromStore.longCode
+                                                |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                            )
+                                                ++ " - "
+                                                ++ questionFromStore.name
+                                        )
+                            )
+
+                questionCodesForAnalytics =
+                    extraParams.questionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsAttributesCodes =
+                    extraParams.datapointCodes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+            in
             ( "P2 - Crosstabs - Group Added"
             , Encode.object <|
-                ( "added_to", encodeDestination extraParams.destination )
-                    :: ( "appended_count", Encode.int extraParams.appendedCount )
-                    :: ( "added_how", encodeAddedHow AddedByAppend )
-                    :: ( "appended_by", encodeLogicOperator extraParams.appendingOperator )
-                    :: ( "operator", encodeGrouping extraParams.groupingOperator )
-                    :: ( "questions_count", Encode.int extraParams.counts.questionsCount )
-                    :: ( "datapoints_count", Encode.int extraParams.counts.datapointsCount )
-                    :: ( "averages_count", Encode.int extraParams.counts.averagesCount )
-                    :: ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
-                    :: ( "added_from", encodeAffixedFrom extraParams.affixedFrom )
-                    :: ( "data_sets", Encode.list Encode.string extraParams.datasetNames )
-                    :: placeAttr place
-                    :: sharedEventParameters sharedParams
+                [ ( "added_to", encodeDestination extraParams.destination )
+                , ( "appended_count", Encode.int extraParams.appendedCount )
+                , ( "added_how", encodeAddedHow AddedByAppend )
+                , ( "appended_by", encodeLogicOperator extraParams.appendingOperator )
+                , ( "operator", encodeGrouping extraParams.groupingOperator )
+                , ( "questions_count", Encode.int extraParams.counts.questionsCount )
+                , ( "attributes_codes_count", Encode.int extraParams.counts.datapointsCount )
+                , ( "averages_count", Encode.int extraParams.counts.averagesCount )
+                , ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
+                , ( "added_from", encodeAffixedFrom extraParams.affixedFrom )
+                , ( "datasets", Encode.list Encode.string extraParams.datasetNames )
+                , ( "namespaces", Encode.list Namespace.encodeCode extraParams.namespaceCodes )
+                , placeAttr place
+                , ( "rows_count", Encode.int <| Crosstab.rowCount sharedParams.crosstab )
+                , ( "cols_count", Encode.int <| Crosstab.colCount sharedParams.crosstab )
+                , ( "cells_count", Encode.int <| Crosstab.size sharedParams.crosstab )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "audiences_ids", Encode.list Encode.string [] )
+                , ( "question_codes", Encode.list Encode.string (List.unique questionCodesForAnalytics) )
+                , ( "question_names", Encode.list Encode.string (List.unique questionNames) )
+                , ( "attributes_codes", Encode.list Encode.string (List.unique cellsAttributesCodes) )
+                ]
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
         GroupsAddedByEditToTable ({ extraParams } as sharedParams) ->
+            let
+                questionNames =
+                    extraParams.questionCodes
+                        |> List.map
+                            (\question ->
+                                XB2.Share.Store.Platform2.getQuestionMaybe question extraParams.store
+                                    |> Maybe.unwrap ""
+                                        (\questionFromStore ->
+                                            (XB2.Share.Data.Labels.splitQuestionCode questionFromStore.longCode
+                                                |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                            )
+                                                ++ " - "
+                                                ++ questionFromStore.name
+                                        )
+                            )
+
+                questionCodesForAnalytics =
+                    extraParams.questionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsAttributesCodes =
+                    extraParams.datapointCodes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+            in
             ( "P2 - Crosstabs - Group Edited"
             , Encode.object <|
                 ( "edited_to", encodeDestination extraParams.destination )
                     :: ( "edited_count", Encode.int extraParams.editedCount )
                     :: ( "questions_count", Encode.int extraParams.counts.questionsCount )
-                    :: ( "datapoints_count", Encode.int extraParams.counts.datapointsCount )
+                    :: ( "attributes_codes_count", Encode.int extraParams.counts.datapointsCount )
                     :: ( "averages_count", Encode.int extraParams.counts.averagesCount )
                     :: ( "audiences_count", Encode.int extraParams.counts.audiencesCount )
-                    :: ( "data_sets", Encode.list Encode.string extraParams.datasetNames )
+                    :: ( "datasets", Encode.list Encode.string extraParams.datasetNames )
+                    :: ( "namespaces", Encode.list Namespace.encodeCode (List.unique extraParams.namespaceCodes) )
+                    :: ( "audiences_ids", Encode.list (.id >> Audience.encodeId) extraParams.audiencesAdded )
+                    :: ( "question_codes", Encode.list Encode.string (List.unique questionCodesForAnalytics) )
+                    :: ( "question_names", Encode.list Encode.string (List.unique questionNames) )
+                    :: ( "attributes_codes", Encode.list Encode.string (List.unique cellsAttributesCodes) )
+                    :: ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
                     :: placeAttr place
                     :: sharedEventParameters sharedParams
                     ++ encodeCrosstabIdAttributeFromRoute route
@@ -1141,16 +1475,165 @@ encodeEvent flags route place event =
             )
 
         ProjectOpened { project, store } ->
-            ( "P2 - Crosstabs - Project Opened"
-            , Encode.object <|
-                sharedProjectEventParams flags place project store
-                    ++ encodeCrosstabIdAttributeFromRoute route
-            )
+            let
+                locations =
+                    XB2.Share.Store.Utils.getByIds store.locations project.data.locationCodes
 
-        UnsavedProjectOpened { project, store } ->
+                waves =
+                    XB2.Share.Store.Utils.getByIds store.waves project.data.waveCodes
+
+                regions : List String
+                regions =
+                    regionsFromLocations locations
+
+                years : List String
+                years =
+                    yearsFromWaves waves
+
+                rowCount =
+                    List.length project.data.rows
+
+                colCount =
+                    List.length project.data.columns
+
+                rowsAndCols =
+                    (project.data.rows ++ project.data.columns)
+                        |> List.map .definition
+
+                basesExpressions =
+                    project.data.bases
+                        |> NonemptyList.toList
+                        |> List.map .expression
+
+                cellsQuestionCodes =
+                    XBData.getProjectRowAndColumnQuestionCodes project
+
+                cellsQuestionCodesForAnalytics =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsQuestions =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                        |> Maybe.combine
+
+                cellQuestionNames =
+                    cellsQuestions
+                        |> Maybe.unwrap []
+                            (List.map
+                                (\question ->
+                                    (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                        |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                    )
+                                        ++ " - "
+                                        ++ question.name
+                                )
+                            )
+
+                cellsAttributesCodes =
+                    rowsAndCols
+                        |> List.fastConcatMap XBData.definitionNamespaceQuestionAndSuffixCodes
+                        |> List.unique
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                namespacesCells =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+                        |> List.unique
+
+                cellsAudiencesIds =
+                    (project.data.rows ++ project.data.columns)
+                        |> List.map .id
+
+                basesQuestionCodes =
+                    basesExpressions
+                        |> List.fastConcatMap Expression.getQuestionCodes
+
+                basesQuestionCodesForAnalytics =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                basesQuestions =
+                    basesQuestionCodes
+                        |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                        |> Maybe.withDefault []
+
+                basesQuestionsNames =
+                    basesQuestions
+                        |> List.unique
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                basesAttributesCodes =
+                    basesExpressions
+                        |> List.unique
+                        |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                basesAudiencesIds =
+                    project.data.bases
+                        |> NonemptyList.map .id
+
+                namespacesBases =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+            in
             ( "P2 - Crosstabs - Project Opened"
             , Encode.object <|
-                unsavedProjectEventParams flags place project store
+                [ ( "project_name", Encode.string project.name )
+                , ( "crosstab_id", XB2.Share.Data.Id.encode project.id )
+                , ( "project_created_date", Encode.string <| Iso8601.fromTime project.createdAt )
+                , placeAttr place
+                , ( "rows_count", Encode.int rowCount )
+                , ( "cols_count", Encode.int colCount )
+                , ( "cells_count", Encode.int <| rowCount * colCount )
+                , ( "waves_count", Encode.int <| List.length waves )
+                , ( "waves", list (.code >> XB2.Share.Data.Id.unwrap) waves )
+                , ( "locations_count", Encode.int <| List.length locations )
+                , ( "locations", list .name locations )
+                , ( "years_count", Encode.int <| List.length years )
+                , ( "years", list identity years )
+                , ( "regions_count", Encode.int <| List.length regions )
+                , ( "regions", list identity regions )
+                , ( "message", Encode.bool <| not <| String.isEmpty project.sharingNote )
+                , ( "message_length", Encode.int <| String.length project.sharingNote )
+                , ( "is_owner", Encode.bool <| project.data.ownerId == flags.user.id )
+                , ( "cells_question_codes", Encode.list Encode.string (List.unique cellsQuestionCodesForAnalytics) )
+                , ( "cells_questions_names", Encode.list Encode.string cellQuestionNames )
+                , ( "cells_attributes_codes", Encode.list Encode.string cellsAttributesCodes )
+                , ( "cells_audiences_ids", Encode.list Encode.string cellsAudiencesIds )
+                , ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+                , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+                , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+                , ( "bases_audiences_ids", NonemptyList.encodeList Encode.string basesAudiencesIds )
+                , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+                , ( "namespaces_cells", Encode.list Namespace.encodeCode namespacesCells )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "datasets", Encode.list Encode.string <| XBData.getProjectDatasetNames rowsAndCols basesExpressions store )
+                ]
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
@@ -1180,7 +1663,7 @@ encodeEvent flags route place event =
                 )
             )
 
-        ProjectSaved { project, newlyCreated, store, questions } ->
+        ProjectSaved { project, newlyCreated, store } ->
             let
                 rowsAndCols =
                     (project.data.rows ++ project.data.columns)
@@ -1204,6 +1687,102 @@ encodeEvent flags route place event =
                     project.data.bases
                         |> NonemptyList.toList
                         |> List.map .name
+
+                cellsQuestionCodes =
+                    XBData.getProjectRowAndColumnQuestionCodes project
+
+                cellsQuestionCodesForAnalytics =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsQuestions =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                        |> Maybe.combine
+
+                cellQuestionNames =
+                    cellsQuestions
+                        |> Maybe.unwrap []
+                            (List.map
+                                (\question ->
+                                    (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                        |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                    )
+                                        ++ " - "
+                                        ++ question.name
+                                )
+                            )
+
+                cellsAttributesCodes =
+                    rowsAndCols
+                        |> List.fastConcatMap XBData.definitionNamespaceQuestionAndSuffixCodes
+                        |> List.unique
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                namespacesCells =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+                        |> List.unique
+
+                cellsAudiencesIds =
+                    (project.data.rows ++ project.data.columns)
+                        |> List.map .id
+
+                basesQuestionCodes =
+                    basesExpressions
+                        |> List.fastConcatMap Expression.getQuestionCodes
+
+                basesQuestionCodesForAnalytics =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                basesQuestions =
+                    basesQuestionCodes
+                        |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code store)
+                        |> Maybe.withDefault []
+
+                basesQuestionsNames =
+                    basesQuestions
+                        |> List.unique
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                basesAttributesCodes =
+                    basesExpressions
+                        |> List.unique
+                        |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                basesAudiencesIds =
+                    project.data.bases
+                        |> NonemptyList.map .id
+
+                namespacesBases =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
             in
             ( "P2 - Crosstabs - Project Saved"
             , Encode.object
@@ -1212,30 +1791,35 @@ encodeEvent flags route place event =
                 , ( "app", Encode.string "Crosstabs" )
                 , ( "crosstab_id", XB2.Share.Data.Id.encode project.id )
                 , ( "waves_count", Encode.int <| List.length waves )
-                , ( "waves", Encode.list (.name >> Encode.string) waves )
+                , ( "waves", list (.code >> XB2.Share.Data.Id.unwrap) waves )
                 , ( "locations_count", Encode.int <| List.length locations )
                 , ( "locations", Encode.list (.name >> Encode.string) locations )
                 , ( "is_owner", Encode.bool <| project.data.ownerId == flags.user.id )
                 , ( "is_shared", Encode.bool <| project.shared /= XBData.MyPrivateCrosstab )
                 , ( "newly_saved", Encode.bool newlyCreated )
-                , ( "audiences_names", Encode.list Encode.string audienceNames )
                 , ( "audiences_count", Encode.int <| List.length audienceNames )
-                , ( "question_codes", Encode.list (.code >> XB2.Share.Data.Id.encode) questions )
-                , ( "question_names", Encode.list (.name >> Encode.string) questions )
-                , ( "question_count", Encode.int <| List.length questions )
-                , ( "attributes_count", Encode.int <| List.length <| List.map (.datapoints >> NonemptyList.length) questions )
+                , ( "cells_question_codes", Encode.list Encode.string (List.unique cellsQuestionCodesForAnalytics) )
+                , ( "cells_questions_names", Encode.list Encode.string cellQuestionNames )
+                , ( "cells_attributes_codes", Encode.list Encode.string cellsAttributesCodes )
+                , ( "cells_audiences_ids", Encode.list Encode.string cellsAudiencesIds )
+                , ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+                , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+                , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+                , ( "bases_audiences_ids", NonemptyList.encodeList Encode.string basesAudiencesIds )
+                , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+                , ( "namespaces_cells", Encode.list Namespace.encodeCode namespacesCells )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , placeAttr place
                 ]
             )
 
-        ProjectDuplicated { project, originalProject, store } ->
+        ProjectDuplicated { project, originalProject } ->
             ( "P2 - Crosstabs - Project Duplicated"
-            , Encode.object <|
-                ( "original_project_name", Encode.string originalProject.name )
-                    :: ( "original_crosstab_id", XB2.Share.Data.Id.encode originalProject.id )
-                    :: ( "original_project_creator", Encode.string originalProject.data.ownerId )
-                    :: ( "saved_as_a_copy", Encode.bool <| XBData.isSharedWithMe originalProject.shared )
-                    :: sharedProjectEventParams flags place project store
-                    ++ encodeCrosstabIdAttributeFromRoute route
+            , Encode.object
+                [ ( "new_project_id", XB2.Share.Data.Id.encode project.id )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "crosstab_id", XB2.Share.Data.Id.encode originalProject.id )
+                ]
             )
 
         ProjectDeleted { project, store } ->
@@ -1245,7 +1829,7 @@ encodeEvent flags route place event =
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
-        ProjectShared { project, store, questions } ->
+        ProjectShared { project, store } ->
             let
                 isSharedWithOrg =
                     case project.shared of
@@ -1254,6 +1838,11 @@ encodeEvent flags route place event =
 
                         _ ->
                             False
+
+                audienceNames =
+                    project.data.bases
+                        |> NonemptyList.toList
+                        |> List.map .name
 
                 rowsAndCols =
                     (project.data.rows ++ project.data.columns)
@@ -1266,40 +1855,21 @@ encodeEvent flags route place event =
 
                 datasetNames =
                     XBData.getProjectDatasetNames rowsAndCols basesExpressions store
-
-                locations =
-                    XB2.Share.Store.Utils.getByIds store.locations project.data.locationCodes
-
-                waves =
-                    XB2.Share.Store.Utils.getByIds store.waves project.data.waveCodes
-
-                audienceNames =
-                    project.data.bases
-                        |> NonemptyList.toList
-                        |> List.map .name
             in
             ( "P2 - Crosstabs - Project Shared"
             , Encode.object
                 [ ( "message", Encode.bool <| not <| String.isEmpty project.sharingNote )
                 , ( "message_length", Encode.int (String.length project.sharingNote) )
                 , ( "shared_with_org", Encode.bool isSharedWithOrg )
-                , ( "datasets", Encode.list Encode.string datasetNames )
-                , ( "datasets_count", Encode.int <| List.length datasetNames )
                 , ( "app", Encode.string "Crosstabs" )
                 , ( "crosstab_id", XB2.Share.Data.Id.encode project.id )
-                , ( "waves_count", Encode.int <| List.length waves )
-                , ( "waves", Encode.list (.name >> Encode.string) waves )
-                , ( "locations_count", Encode.int <| List.length locations )
-                , ( "locations", Encode.list (.name >> Encode.string) locations )
                 , ( "is_owner", Encode.bool <| project.data.ownerId == flags.user.id )
                 , ( "is_shared", Encode.bool <| project.shared /= XBData.MyPrivateCrosstab )
                 , ( "newly_saved", Encode.bool False )
-                , ( "audiences_names", Encode.list Encode.string audienceNames )
                 , ( "audiences_count", Encode.int <| List.length audienceNames )
-                , ( "question_codes", Encode.list (.code >> XB2.Share.Data.Id.encode) questions )
-                , ( "question_names", Encode.list (.name >> Encode.string) questions )
-                , ( "question_count", Encode.int <| List.length questions )
-                , ( "attributes_count", Encode.int <| List.length <| List.map (.datapoints >> NonemptyList.length) questions )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "datasets", Encode.list Encode.string datasetNames )
+                , placeAttr place
                 ]
             )
 
@@ -1316,18 +1886,6 @@ encodeEvent flags route place event =
                 datasetNames =
                     XBData.getProjectDatasetNames rowsAndCols basesExpressions data.store
 
-                maybeProject =
-                    data.maybeProject
-
-                questionCodes =
-                    maybeProject
-                        |> Maybe.unwrap [] XBData.getProjectQuestionCodes
-
-                questions =
-                    questionCodes
-                        |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code data.store)
-                        |> Maybe.withDefault []
-
                 isSaved =
                     case data.isSaved of
                         Saved _ ->
@@ -1341,32 +1899,135 @@ encodeEvent flags route place event =
 
                         Unsaved ->
                             False
+
+                cellsAudiencesIds =
+                    data.audiences
+                        |> List.map AudienceItem.getId
+
+                basesQuestionCodes =
+                    data.xbBases
+                        |> List.fastConcatMap (BaseAudience.getExpression >> Expression.getQuestionCodes)
+
+                basesQuestionCodesForAnalytics =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                basesQuestions =
+                    basesQuestionCodes
+                        |> Maybe.traverse (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code data.store)
+                        |> Maybe.withDefault []
+
+                basesQuestionsNames =
+                    basesQuestions
+                        |> List.unique
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                basesAttributesCodes =
+                    data.xbBases
+                        |> List.map BaseAudience.getExpression
+                        |> List.unique
+                        |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                basesAudiencesIds =
+                    data.xbBases
+                        |> List.map BaseAudience.getId
+
+                namespacesBases =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+
+                cellsQuestionCodes =
+                    data.audiences
+                        |> List.fastConcatMap AudienceItem.getNamespaceAndQuestionCodes
+
+                cellsQuestionCodesForAnalytics =
+                    cellsQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsQuestions =
+                    cellsQuestionCodes
+                        |> List.map (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code data.store)
+                        |> Maybe.combine
+
+                cellQuestionNames =
+                    cellsQuestions
+                        |> Maybe.unwrap []
+                            (List.map
+                                (\question ->
+                                    (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                        |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                    )
+                                        ++ " - "
+                                        ++ question.name
+                                )
+                            )
+
+                cellsAttributesCodes =
+                    data.audiences
+                        |> List.map AudienceItem.getDefinition
+                        |> List.fastConcatMap XBData.definitionNamespaceQuestionAndSuffixCodes
+                        |> List.unique
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                namespacesCells =
+                    cellsQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+                        |> List.unique
             in
             ( "P2 - Crosstabs - Query Export"
             , Encode.object
-                ([ ( "datasets_count", Encode.int <| List.length datasetNames )
+                ([ ( "datasets_count", Encode.int (List.length datasetNames) )
                  , ( "datasets", Encode.list Encode.string datasetNames )
                  , ( "app", Encode.string "Crosstabs" )
                  , ( "locations", list .name data.locations )
-                 , ( "locations_count", Encode.int <| List.length data.locations )
-                 , ( "waves", list .name data.waves )
-                 , ( "waves_count", Encode.int <| List.length data.waves )
-                 , ( "audiences_names", list getNameFromItem data.audiences )
-                 , ( "audiences_count", Encode.int <| List.length data.audiences )
+                 , ( "locations_count", Encode.int (List.length data.locations) )
+                 , ( "waves", list (.code >> XB2.Share.Data.Id.unwrap) data.waves )
+                 , ( "waves_count", Encode.int (List.length data.waves) )
+                 , ( "audiences_count", Encode.int (List.length data.audiences) )
                  , ( "project_saved", Encode.bool isSaved )
+                 , ( "cells_audiences_ids", Encode.list (AudienceItemId.toString >> Encode.string) cellsAudiencesIds )
+                 , ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+                 , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+                 , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+                 , ( "bases_audiences_ids", Encode.list (AudienceItemId.toString >> Encode.string) basesAudiencesIds )
+                 , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+                 , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                 , ( "crosstab_id", Maybe.unwrap (Encode.string "n/a") (.id >> XB2.Share.Data.Id.encode) data.maybeProject )
+                 , ( "is_owner", Maybe.unwrap (Encode.bool True) (\project -> Encode.bool (project.data.ownerId == flags.user.id)) data.maybeProject )
+                 , ( "cells_question_codes", Encode.list Encode.string (List.unique cellsQuestionCodesForAnalytics) )
+                 , ( "cells_questions_names", Encode.list Encode.string cellQuestionNames )
+                 , ( "cells_attributes_codes", Encode.list Encode.string cellsAttributesCodes )
+                 , ( "namespaces_cells", Encode.list Namespace.encodeCode namespacesCells )
+                 , placeAttr place
                  ]
                     ++ Maybe.unwrap []
                         (\project ->
-                            [ ( "crosstab_id", XB2.Share.Data.Id.encode project.id )
-                            , ( "is_shared", Encode.bool <| project.shared /= XBData.MyPrivateCrosstab )
-                            , ( "is_owner", Encode.bool <| project.data.ownerId == flags.user.id )
-                            , ( "question_codes", Encode.list (.code >> XB2.Share.Data.Id.encode) questions )
-                            , ( "question_names", Encode.list (.name >> Encode.string) questions )
-                            , ( "question_count", Encode.int <| List.length questions )
-                            , ( "attributes_count", Encode.int <| List.length <| List.map (.datapoints >> NonemptyList.length) questions )
+                            [ ( "is_shared", Encode.bool (project.shared /= XBData.MyPrivateCrosstab) )
                             ]
                         )
-                        maybeProject
+                        data.maybeProject
                 )
             )
 
@@ -1397,11 +2058,153 @@ encodeEvent flags route place event =
             )
 
         HeatmapApplied ({ extraParams } as sharedParams) ->
+            let
+                rowsAndCols =
+                    Maybe.unwrap []
+                        (\project ->
+                            (project.data.rows ++ project.data.columns)
+                                |> List.map .definition
+                        )
+                        extraParams.project
+
+                basesExpressions =
+                    Maybe.unwrap []
+                        (\project ->
+                            project.data.bases
+                                |> NonemptyList.toList
+                                |> List.map .expression
+                        )
+                        extraParams.project
+
+                cellsQuestionCodes =
+                    Maybe.unwrap XB2.Share.Data.Id.emptySet
+                        (\project ->
+                            XBData.getProjectRowAndColumnQuestionCodes project
+                        )
+                        extraParams.project
+
+                cellsQuestionCodesForAnalytics =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                cellsQuestions =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map (\code -> XB2.Share.Store.Platform2.getQuestionMaybe code extraParams.store)
+                        |> Maybe.combine
+
+                cellQuestionNames =
+                    cellsQuestions
+                        |> Maybe.unwrap []
+                            (List.map
+                                (\question ->
+                                    (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                        |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                    )
+                                        ++ " - "
+                                        ++ question.name
+                                )
+                            )
+
+                cellsAttributesCodes =
+                    rowsAndCols
+                        |> List.fastConcatMap XBData.definitionNamespaceQuestionAndSuffixCodes
+                        |> List.unique
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                namespacesCells =
+                    cellsQuestionCodes
+                        |> AnySet.toList
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+                        |> List.unique
+
+                cellsAudiencesIds =
+                    Maybe.unwrap []
+                        (\project ->
+                            (project.data.rows ++ project.data.columns)
+                                |> List.map .id
+                        )
+                        extraParams.project
+
+                basesQuestionCodes =
+                    basesExpressions
+                        |> List.fastConcatMap Expression.getQuestionCodes
+
+                basesQuestionCodesForAnalytics =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.splitQuestionCode
+                        |> List.map (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+
+                basesQuestions =
+                    basesQuestionCodes
+                        |> Maybe.traverse
+                            (\code ->
+                                XB2.Share.Store.Platform2.getQuestionMaybe code extraParams.store
+                            )
+                        |> Maybe.withDefault []
+
+                basesQuestionsNames =
+                    basesQuestions
+                        |> List.unique
+                        |> List.map
+                            (\question ->
+                                (XB2.Share.Data.Labels.splitQuestionCode question.longCode
+                                    |> (\( nsCode, qCode ) -> Namespace.codeToString nsCode ++ "." ++ XB2.Share.Data.Id.unwrap qCode)
+                                )
+                                    ++ " - "
+                                    ++ question.name
+                            )
+
+                basesAttributesCodes =
+                    basesExpressions
+                        |> List.unique
+                        |> List.fastConcatMap Expression.getQuestionAndDatapointCodesAndNamespaceAndSuffixes
+                        |> List.map
+                            (\( nsCode, qCode, mSuffCode ) ->
+                                Namespace.codeToString nsCode
+                                    ++ "."
+                                    ++ XB2.Share.Data.Id.unwrap qCode
+                                    ++ Maybe.withDefault "" (Maybe.map (\suffCode -> "_" ++ Suffix.codeToString suffCode) mSuffCode)
+                            )
+
+                basesAudiencesIds =
+                    Maybe.unwrap []
+                        (\project ->
+                            project.data.bases
+                                |> NonemptyList.map .id
+                                |> NonemptyList.toList
+                        )
+                        extraParams.project
+
+                namespacesBases =
+                    basesQuestionCodes
+                        |> List.map XB2.Share.Data.Labels.parseNamespaceCode
+            in
             ( "P2 - Crosstabs - Heatmap applied"
             , Encode.object <|
-                ( "metric", encodeMetric extraParams.metric )
-                    :: placeAttr place
-                    :: sharedEventParameters sharedParams
+                [ ( "metric", encodeMetric extraParams.metric )
+                , ( "cells_question_codes", Encode.list Encode.string (List.unique cellsQuestionCodesForAnalytics) )
+                , ( "cells_questions_names", Encode.list Encode.string cellQuestionNames )
+                , ( "cells_attributes_codes", Encode.list Encode.string cellsAttributesCodes )
+                , ( "cells_audiences_ids", Encode.list Encode.string cellsAudiencesIds )
+                , ( "bases_question_codes", Encode.list Encode.string (List.unique basesQuestionCodesForAnalytics) )
+                , ( "bases_questions_names", Encode.list Encode.string basesQuestionsNames )
+                , ( "bases_attributes_codes", Encode.list Encode.string basesAttributesCodes )
+                , ( "bases_audiences_ids", Encode.list Encode.string basesAudiencesIds )
+                , ( "namespaces_bases", Encode.list Namespace.encodeCode (List.unique namespacesBases) )
+                , ( "namespaces_cells", Encode.list Namespace.encodeCode namespacesCells )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , placeAttr place
+                ]
+                    ++ sharedEventParameters sharedParams
                     ++ encodeCrosstabIdAttributeFromRoute route
             )
 
@@ -1710,11 +2513,64 @@ encodeEvent flags route place event =
                 (( "type", Encode.string type_ ) :: encodeCrosstabIdAttributeFromRoute route)
             )
 
-        CopyLink { projectId, projectName } ->
-            ( "P2 - Crosstabs - Copy link"
+        CopyLink { projectId, projectName, project, store } ->
+            let
+                isSharedWithOrg =
+                    Maybe.unwrap False
+                        (\pro ->
+                            case pro.shared of
+                                XBData.MySharedCrosstab sharees ->
+                                    NonemptyList.any XBData.isOrgSharee sharees
+
+                                _ ->
+                                    False
+                        )
+                        project
+
+                audienceNames =
+                    Maybe.unwrap []
+                        (\pro ->
+                            pro.data.bases
+                                |> NonemptyList.toList
+                                |> List.map .name
+                        )
+                        project
+
+                rowsAndCols =
+                    Maybe.unwrap []
+                        (\pro ->
+                            (pro.data.rows ++ pro.data.columns)
+                                |> List.map .definition
+                        )
+                        project
+
+                basesExpressions =
+                    Maybe.unwrap []
+                        (\pro ->
+                            pro.data.bases
+                                |> NonemptyList.toList
+                                |> List.map .expression
+                        )
+                        project
+
+                datasetNames =
+                    XBData.getProjectDatasetNames rowsAndCols basesExpressions store
+            in
+            ( "P2 - Crosstabs - Project Shared"
             , Encode.object
                 [ ( "crosstab_id", XB2.Share.Data.Id.encode projectId )
                 , ( "project_name", Encode.string projectName )
+                , ( "message", Encode.bool <| not <| String.isEmpty (Maybe.unwrap "" .sharingNote project) )
+                , ( "message_length", Encode.int (String.length (Maybe.unwrap "" .sharingNote project)) )
+                , ( "shared_with_org", Encode.bool isSharedWithOrg )
+                , ( "app", Encode.string "Crosstabs" )
+                , ( "is_owner", Encode.bool <| Maybe.unwrap False (\pro -> pro.data.ownerId == flags.user.id) project )
+                , ( "is_shared", Encode.bool <| Maybe.unwrap False (\pro -> pro.shared /= XBData.MyPrivateCrosstab) project )
+                , ( "newly_saved", Encode.bool False )
+                , ( "audiences_count", Encode.int <| List.length audienceNames )
+                , ( "org_id", Maybe.unwrap Encode.null (XB2.Share.Data.Id.fromString >> XB2.Share.Data.Id.unsafeEncodeAsInt) flags.user.organisationId )
+                , ( "datasets", Encode.list Encode.string datasetNames )
+                , placeAttr place
                 ]
             )
 

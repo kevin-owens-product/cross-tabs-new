@@ -137,6 +137,7 @@ module XB2.Data.AudienceCrosstab exposing
     , notLoadedCellDataCount
     , notSame
     , questionCodes
+    , questionCodesWithBases
     , reloadCell
     , reloadNotAskedCells
     , reloadNotLoadedCells
@@ -4527,6 +4528,31 @@ questionCodes crosstab =
     in
     (rows ++ columns)
         |> List.fastConcatMap (.item >> AudienceItem.getDefinition >> XB2.Data.definitionNamespaceAndQuestionCodes)
+        |> XB2.Share.Data.Id.setFromList
+        |> Set.Any.toList
+
+
+questionCodesWithBases : AudienceCrosstab -> List NamespaceAndQuestionCode
+questionCodesWithBases crosstab =
+    let
+        rows : List Key
+        rows =
+            getRows crosstab
+
+        columns : List Key
+        columns =
+            getColumns crosstab
+
+        baseAudiences : List NamespaceAndQuestionCode
+        baseAudiences =
+            getBaseAudiences crosstab
+                |> Zipper.toList
+                |> List.map BaseAudience.getExpression
+                |> List.fastConcatMap XB2.Data.Audience.Expression.getQuestionCodes
+    in
+    (rows ++ columns)
+        |> List.fastConcatMap (.item >> AudienceItem.getDefinition >> XB2.Data.definitionNamespaceAndQuestionCodes)
+        |> List.append baseAudiences
         |> XB2.Share.Data.Id.setFromList
         |> Set.Any.toList
 
