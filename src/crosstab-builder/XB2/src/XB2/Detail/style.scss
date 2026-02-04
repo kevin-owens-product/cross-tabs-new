@@ -28,7 +28,7 @@ $bases-panel-top-padding: 8px;
 }
 
 @mixin xb2-strong {
-    color: #526482;
+    color: P2Colors.$grey6;
     text-transform: uppercase;
     letter-spacing: 1px;
     font-size: 12px;
@@ -45,7 +45,7 @@ $bases-panel-top-padding: 8px;
     margin-left: $margin;
     margin-bottom: $margin * 2;
     padding: 16px 12px;
-    background: #ffffff;
+    background: P2Colors.$white;
     box-shadow:
         0 4px 16px 0 rgba(35, 103, 219, 0.1),
         0 2px 4px 0 rgba(19, 62, 171, 0.2);
@@ -104,7 +104,7 @@ $bases-panel-top-padding: 8px;
 
     &--cancel {
         float: right;
-        color: #526482;
+        color: P2Colors.$grey6;
         padding: 0px;
     }
 
@@ -174,7 +174,7 @@ $bases-panel-top-padding: 8px;
         font-size: 12px;
         font-weight: normal;
         letter-spacing: 1px;
-        color: #526482;
+        color: P2Colors.$grey6;
         padding-right: 8px;
 
         &--disabled-text {
@@ -190,7 +190,7 @@ $bases-panel-top-padding: 8px;
         font-size: 14px;
         color: #2367db;
         line-height: 24px;
-        background-color: #ffffff;
+        background-color: P2Colors.$white;
         cursor: pointer;
         font-weight: 600;
 
@@ -227,7 +227,7 @@ $bases-panel-top-padding: 8px;
             border-radius: 2px;
             font-weight: 600;
             font-size: 14px;
-            color: #ffffff;
+            color: P2Colors.$white;
             background-color: #2467dc;
 
             &.disabled {
@@ -304,7 +304,7 @@ $bases-panel-top-padding: 8px;
 
     &--cancel {
         float: right;
-        color: #526482;
+        color: P2Colors.$grey6;
         padding: 0px;
     }
 
@@ -356,7 +356,7 @@ $bases-panel-top-padding: 8px;
     align-items: center;
 
     &.none {
-        background-color: #abb8cf;
+        background-color: P2Colors.$grey4;
     }
 
     &.some {
@@ -379,7 +379,7 @@ $bases-panel-top-padding: 8px;
     height: 100%;
     display: flex;
     flex-flow: row;
-    color: #526482;
+    color: P2Colors.$grey6;
     font-family: P2Components.$p2-fonts;
 
     &__control-panel {
@@ -528,7 +528,7 @@ $bases-panel-top-padding: 8px;
         flex-direction: column;
         height: 100%;
         width: 240px;
-        background-color: #f7faff;
+        background-color: P2Colors.$grey1;
 
         &--wrapper {
             display: flex;
@@ -556,7 +556,7 @@ $bases-panel-top-padding: 8px;
 
             &.active {
                 position: relative;
-                color: #191530;
+                color: P2Colors.$navy;
 
                 &::after {
                     content: " ";
@@ -655,7 +655,7 @@ $bases-panel-top-padding: 8px;
             }
 
             &::placeholder {
-                color: #526482;
+                color: P2Colors.$grey6;
             }
         }
 
@@ -729,7 +729,7 @@ $bases-panel-top-padding: 8px;
                 }
 
                 .vertex & {
-                    color: #191530;
+                    color: P2Colors.$navy;
                     align-items: center;
 
                     &:hover {
@@ -775,7 +775,7 @@ $bases-panel-top-padding: 8px;
             }
 
             &--dpcount {
-                color: #abb8cf;
+                color: P2Colors.$grey4;
                 font-size: 12px;
             }
 
@@ -905,7 +905,7 @@ $bases-panel-top-padding: 8px;
             flex: 0 0 auto;
             padding: 0 16px;
             font-size: 16px;
-            color: #191530;
+            color: P2Colors.$navy;
 
             &::after {
                 content: "";
@@ -929,7 +929,7 @@ $bases-panel-top-padding: 8px;
 
             &--count {
                 font-size: 14px;
-                color: #526482;
+                color: P2Colors.$grey6;
             }
 
             &--title {
@@ -1049,7 +1049,7 @@ $bases-panel-top-padding: 8px;
                 0px 6px 4px -4px rgba(18, 69, 170, 0.2);
             font-size: 16px;
             font-weight: bold;
-            color: #191530;
+            color: P2Colors.$navy;
             transition: box-shadow 0.1s;
             box-shadow: none;
 
@@ -1150,7 +1150,7 @@ $bases-panel-top-padding: 8px;
                         width: 8px;
                         height: 8px;
 
-                        border-top-color: #526482;
+                        border-top-color: P2Colors.$grey6;
                         animation: spin 1.5s linear infinite;
                     }
                 }
@@ -1244,7 +1244,7 @@ $bases-panel-top-padding: 8px;
 
     &__tools-panel {
         padding: 16px 16px 0;
-        background: #dfe7f5;
+        background: P2Colors.$grey2;
 
         &--panels {
             @include Drawers.drawer-selection-panel();
@@ -1263,8 +1263,8 @@ $bases-panel-top-padding: 8px;
         align-items: flex-end;
         height: calc(40px + #{$bases-panel-top-padding});
         margin: 0;
-        background-color: #dfe7f5;
-        color: #191530;
+        background-color: P2Colors.$grey2;
+        color: P2Colors.$navy;
 
         &--search-bar {
             display: flex;
@@ -1403,8 +1403,8 @@ $bases-panel-top-padding: 8px;
             border-radius: 4px 4px 0 0;
             height: 32px;
             cursor: pointer;
-            background: #de1b76;
-            color: #ffffff;
+            background: P2Colors.$pink-medium;
+            color: P2Colors.$white;
             font-size: 14px;
             font-weight: 600;
 
@@ -1438,7 +1438,7 @@ $bases-panel-top-padding: 8px;
             }
 
             &:hover {
-                background: #a40f58;
+                background: P2Colors.$pink-dark;
             }
         }
 
@@ -1460,7 +1460,7 @@ $bases-panel-top-padding: 8px;
             overflow: auto;
 
             position: absolute;
-            background-color: #ffffff;
+            background-color: P2Colors.$white;
             padding: 0 0 0 0;
             top: calc(100% + 8.7px);
             left: 0;
@@ -1480,7 +1480,7 @@ $bases-panel-top-padding: 8px;
                 height: 0;
                 border-width: 0 5px 8.7px 5px;
                 border-style: solid;
-                border-color: transparent transparent #ffffff transparent;
+                border-color: transparent transparent P2Colors.$white transparent;
                 filter: drop-shadow(0px -2px 2px rgba(35, 103, 219, 0.1));
             }
 
@@ -1565,7 +1565,7 @@ $bases-panel-top-padding: 8px;
                 }
 
                 &.active {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                     font-weight: 600;
                 }
             }
@@ -1616,7 +1616,7 @@ $bases-panel-top-padding: 8px;
                     height: 40px;
                     min-width: 32px;
                     padding: 0;
-                    background-color: #dfe7f5;
+                    background-color: P2Colors.$grey2;
 
                     &--right {
                         border-left: 1px solid #859292ba;
@@ -1645,7 +1645,7 @@ $bases-panel-top-padding: 8px;
                 margin-right: 8px;
                 margin-top: 8px;
                 padding: 0 0 0 32px;
-                color: #191530;
+                color: P2Colors.$navy;
                 font-size: 14px;
                 font-weight: 500;
                 cursor: pointer;
@@ -1679,7 +1679,7 @@ $bases-panel-top-padding: 8px;
                     margin-right: 8px;
                     margin-top: 8px;
                     padding: 0 0 0 32px;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     font-size: 14px;
                     font-weight: 600;
                     cursor: pointer;
@@ -1690,7 +1690,7 @@ $bases-panel-top-padding: 8px;
                 }
 
                 &.selected {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                     font-weight: 600;
                 }
 
@@ -1718,7 +1718,7 @@ $bases-panel-top-padding: 8px;
                 }
 
                 &.active {
-                    background-color: #ffffff;
+                    background-color: P2Colors.$white;
                     font-weight: 600;
                 }
 
@@ -1926,12 +1926,12 @@ $bases-panel-top-padding: 8px;
             padding: 10px 10px 10px 8px;
             font-size: 12px;
             line-height: 1.33;
-            background-color: #ffffff;
-            color: #191530;
+            background-color: P2Colors.$white;
+            color: P2Colors.$navy;
             cursor: default;
 
             &--highlight {
-                color: #de1b76;
+                color: P2Colors.$pink-medium;
                 font-weight: 600;
                 white-space: nowrap;
             }
@@ -1966,7 +1966,7 @@ $bases-panel-top-padding: 8px;
             min-width: 150px;
             top: 0;
             right: 0;
-            background-color: #ffffff;
+            background-color: P2Colors.$white;
             border: 1px solid #000000;
             box-shadow: 4px 4px 4px #666666;
 
@@ -2045,7 +2045,7 @@ $bases-panel-top-padding: 8px;
         color: #2367db;
 
         &.unchecked {
-            color: #dfe7f5;
+            color: P2Colors.$grey2;
         }
 
         &--label {
@@ -2055,7 +2055,7 @@ $bases-panel-top-padding: 8px;
     }
 
     @mixin xb2-animated-loader {
-        background: linear-gradient(75deg, #abb8cf, #ebf0fa);
+        background: linear-gradient(75deg, P2Colors.$grey4, #ebf0fa);
         background-size: 100px;
         animation: loading-animation 5s linear infinite;
 
@@ -2077,7 +2077,7 @@ $bases-panel-top-padding: 8px;
         }
 
         &:not(.animated) {
-            background: linear-gradient(75deg, #abb8cf, #ebf0fa);
+            background: linear-gradient(75deg, P2Colors.$grey4, #ebf0fa);
         }
 
         display: inline-block;
@@ -2099,8 +2099,8 @@ $bases-panel-top-padding: 8px;
     &__selected-bases {
         margin-top: 24px;
         padding: 16px 32px;
-        background-color: #f7faff;
-        color: #191530;
+        background-color: P2Colors.$grey1;
+        color: P2Colors.$navy;
 
         &.not-default {
             cursor: pointer;
@@ -2122,7 +2122,7 @@ $bases-panel-top-padding: 8px;
             box-shadow:
                 0 3px 10px 0 rgba(35, 103, 219, 0.1),
                 0 1px 3px 0 rgba(18, 69, 170, 0.2);
-            background-color: #ffffff;
+            background-color: P2Colors.$white;
             text-align: left;
 
             &--checkbox {
@@ -2143,7 +2143,7 @@ $bases-panel-top-padding: 8px;
 
             &.selected > &--checkbox {
                 background-color: #2367db;
-                color: #ffffff;
+                color: P2Colors.$white;
             }
         }
 
@@ -2187,12 +2187,12 @@ $bases-panel-top-padding: 8px;
             border-radius: 2px;
 
             &.item-1 {
-                @include xb2-animated-loader(#abb8cf, #dfe7f5);
+                @include xb2-animated-loader(P2Colors.$grey4, P2Colors.$grey2);
                 width: 152px;
             }
 
             &.item-2 {
-                @include xb2-animated-loader(#abb8cf, #dfe7f5);
+                @include xb2-animated-loader(P2Colors.$grey4, P2Colors.$grey2);
                 width: 94px;
             }
 
@@ -2226,11 +2226,11 @@ $bases-panel-top-padding: 8px;
     }
 
     &__empty-bases {
-        background-color: #f7faff;
+        background-color: P2Colors.$grey1;
         padding: 24px 16px 40px;
 
         &--heading {
-            color: #191530;
+            color: P2Colors.$navy;
             line-height: 40px;
             font-size: 24px;
             font-weight: 700;
@@ -2238,7 +2238,7 @@ $bases-panel-top-padding: 8px;
 
         &--description {
             margin-top: 16px;
-            color: #191530;
+            color: P2Colors.$navy;
             font-size: 16px;
         }
     }
@@ -2253,7 +2253,7 @@ $bases-panel-top-padding: 8px;
         ///////////////// BORDER HACK ///////////////////
         // this is instead of a simple `border: 1px dashed #abb8cf;`
         // because we need longer stroke of the dashes than the default CSS border gives us
-        $border-color: #abb8cf;
+        $border-color: P2Colors.$grey4;
         $border-width: 1px;
         $border-stroke-length: 10px;
 
@@ -2280,14 +2280,14 @@ $bases-panel-top-padding: 8px;
         &--title {
             font-size: 13px;
             font-weight: bold;
-            color: #191530;
+            color: P2Colors.$navy;
         }
 
         &--description {
             margin-top: 8px;
             font-size: 13px;
             font-weight: normal;
-            color: #191530;
+            color: P2Colors.$navy;
         }
 
         &--button-wrapper {
@@ -2307,7 +2307,7 @@ $bases-panel-top-padding: 8px;
 
         &--button {
             padding-left: 8px;
-            color: #526482;
+            color: P2Colors.$grey6;
         }
 
         &--button-wrapper.selected &--button,
@@ -2344,7 +2344,7 @@ $bases-panel-top-padding: 8px;
             margin: 0 0 32px;
             padding: 0;
             background-color: P2Colors.$white;
-            color: #191530;
+            color: P2Colors.$navy;
             overflow: hidden;
             max-height: 90%;
             border-radius: 4px;
@@ -2365,7 +2365,7 @@ $bases-panel-top-padding: 8px;
 
                 &--title {
                     padding: 6px 0 0 24px;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     font-size: 20px;
                     font-weight: 600;
                 }
@@ -2390,7 +2390,7 @@ $bases-panel-top-padding: 8px;
                 }
 
                 & p {
-                    color: #191530;
+                    color: P2Colors.$navy;
                     font-size: 14px;
                     font-weight: normal;
                     margin-top: 0;
