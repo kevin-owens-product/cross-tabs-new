@@ -62,26 +62,114 @@ class MockAttributeBrowser extends HTMLElement {
     private render() {
         this.shadow.innerHTML = `
             <style>
-                :host { display: block; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #333; }
-                .ab-root { border: 1px solid #ddd; border-radius: 6px; background: #fff; max-height: 480px; overflow-y: auto; }
-                .ab-header { padding: 10px 14px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #eee; background: #f8f9fa; border-radius: 6px 6px 0 0; }
-                .ab-loading { padding: 20px; text-align: center; color: #888; }
-                .ab-category { border-bottom: 1px solid #f0f0f0; }
-                .ab-cat-title { padding: 8px 14px; font-weight: 600; cursor: pointer; background: #fafafa; user-select: none; }
-                .ab-cat-title:hover { background: #f0f0f0; }
+                :host {
+                    display: block;
+                    font-family: Faktum, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    font-size: 13px;
+                    color: #191530;
+                }
+                .ab-root {
+                    border: 1px solid #dfe7f5;
+                    border-radius: 4px;
+                    background: #f7faff;
+                    max-height: 480px;
+                    overflow-y: auto;
+                }
+                .ab-root::-webkit-scrollbar { width: 6px; }
+                .ab-root::-webkit-scrollbar-track { background: #f7faff; }
+                .ab-root::-webkit-scrollbar-thumb { background: #b3bfd1; border-radius: 3px; }
+                .ab-root::-webkit-scrollbar-thumb:hover { background: #7f8fa4; }
+                .ab-header {
+                    padding: 12px 16px;
+                    font-weight: 600;
+                    font-size: 14px;
+                    color: #191530;
+                    border-bottom: 1px solid #dfe7f5;
+                    background: #f7faff;
+                    border-radius: 4px 4px 0 0;
+                }
+                .ab-loading {
+                    padding: 24px;
+                    text-align: center;
+                    color: #7f8fa4;
+                    animation: ab-pulse 1.5s ease-in-out infinite;
+                }
+                @keyframes ab-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+                .ab-error {
+                    padding: 24px;
+                    text-align: center;
+                    color: #c0392b;
+                    font-size: 12px;
+                }
+                .ab-category {
+                    border-bottom: 1px solid #dfe7f5;
+                }
+                .ab-cat-title {
+                    padding: 8px 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    background: #f7faff;
+                    user-select: none;
+                    color: #191530;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: background-color 150ms ease-out;
+                }
+                .ab-cat-title:hover { background: #ebf0fa; }
+                .ab-cat-title svg {
+                    flex-shrink: 0;
+                    transition: transform 150ms ease-out;
+                }
+                .ab-cat-title.open svg {
+                    transform: rotate(90deg);
+                }
                 .ab-questions { display: none; }
                 .ab-questions.open { display: block; }
-                .ab-question { padding: 6px 14px 6px 28px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-                .ab-question:hover { background: #e8f0fe; }
-                .ab-dp-list { padding-left: 42px; }
-                .ab-dp { padding: 4px 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-                .ab-dp:hover { background: #e8f0fe; }
-                .ab-dp .cb, .ab-question .cb { width: 14px; height: 14px; border: 1px solid #999; border-radius: 3px; flex-shrink: 0; }
-                .ab-dp .cb.checked, .ab-question .cb.checked { background: #1a73e8; border-color: #1a73e8; }
+                .ab-question {
+                    padding: 8px 16px 8px 32px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    color: #191530;
+                    transition: background-color 150ms ease-out;
+                }
+                .ab-question:hover { background: #ebf0fa; }
+                .ab-dp-list { padding-left: 24px; }
+                .ab-dp {
+                    padding: 6px 16px 6px 32px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    color: #191530;
+                    transition: background-color 150ms ease-out;
+                }
+                .ab-dp:hover { background: #ebf0fa; }
+                .ab-dp .cb, .ab-question .cb {
+                    width: 16px;
+                    height: 16px;
+                    border: 1.5px solid #191530;
+                    border-radius: 3px;
+                    flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 150ms ease-out;
+                    background: #fff;
+                }
+                .ab-dp .cb.checked, .ab-question .cb.checked {
+                    background: #de1b76;
+                    border-color: #de1b76;
+                }
             </style>
             <div class="ab-root">
                 <div class="ab-header">Attribute Browser</div>
-                <div class="ab-loading" id="ab-content">Loading attributes…</div>
+                <div class="ab-loading" id="ab-content">Loading attributes\u2026</div>
             </div>
         `;
     }
@@ -98,9 +186,15 @@ class MockAttributeBrowser extends HTMLElement {
             this.renderCategories(attrs);
         } catch (e) {
             const el = this.shadow.getElementById("ab-content");
-            if (el) el.textContent = "Failed to load attributes.";
+            if (el) {
+                el.className = "ab-error";
+                el.textContent = "Failed to load attributes.";
+            }
         }
     }
+
+    private static CHEVRON_SVG = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5L8 6L4.5 9.5" stroke="#191530" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    private static CHECK_SVG = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
     private renderCategories(categories: Array<any>) {
         const container = this.shadow.getElementById("ab-content");
@@ -114,20 +208,20 @@ class MockAttributeBrowser extends HTMLElement {
 
             const title = document.createElement("div");
             title.className = "ab-cat-title";
-            title.textContent = `▶ ${cat.name}`;
+            title.innerHTML = `${MockAttributeBrowser.CHEVRON_SVG}<span>${cat.name}</span>`;
 
             const questionsEl = document.createElement("div");
             questionsEl.className = "ab-questions";
 
             title.addEventListener("click", () => {
                 const isOpen = questionsEl.classList.toggle("open");
-                title.textContent = `${isOpen ? "▼" : "▶"} ${cat.name}`;
+                title.classList.toggle("open", isOpen);
             });
 
             for (const q of cat.questions) {
                 const qRow = document.createElement("div");
                 qRow.className = "ab-question";
-                qRow.innerHTML = `<span class="cb"></span> ${q.name}`;
+                qRow.innerHTML = `<span class="cb"></span><span>${q.name}</span>`;
 
                 const dpContainer = document.createElement("div");
                 dpContainer.className = "ab-dp-list";
@@ -144,11 +238,17 @@ class MockAttributeBrowser extends HTMLElement {
                                 for (const dp of question.datapoints) {
                                     const dpRow = document.createElement("div");
                                     dpRow.className = "ab-dp";
-                                    dpRow.innerHTML = `<span class="cb"></span> ${dp.name}`;
+                                    dpRow.innerHTML = `<span class="cb"></span><span>${dp.name}</span>`;
                                     dpRow.addEventListener("click", (e) => {
                                         e.stopPropagation();
                                         const cb = dpRow.querySelector(".cb");
-                                        cb?.classList.toggle("checked");
+                                        if (cb) {
+                                            const wasChecked =
+                                                cb.classList.toggle("checked");
+                                            cb.innerHTML = wasChecked
+                                                ? MockAttributeBrowser.CHECK_SVG
+                                                : "";
+                                        }
                                         this.toggleAttribute(
                                             q.namespace_code ||
                                                 cat.namespace_code ||
@@ -276,31 +376,131 @@ class MockAudienceBrowser extends HTMLElement {
         return res.json();
     }
 
+    private static CHECK_SVG = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
     private render() {
         this.shadow.innerHTML = `
             <style>
-                :host { display: block; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #333; }
-                .aub-root { border: 1px solid #ddd; border-radius: 6px; background: #fff; max-height: 480px; overflow-y: auto; }
-                .aub-header { padding: 10px 14px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #eee; background: #f8f9fa; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
-                .aub-loading { padding: 20px; text-align: center; color: #888; }
-                .aub-section { border-bottom: 1px solid #f0f0f0; }
-                .aub-section-title { padding: 8px 14px; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; background: #fafafa; letter-spacing: 0.5px; }
-                .aub-item { padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5f5; }
-                .aub-item:hover { background: #e8f0fe; }
-                .aub-item .cb { width: 14px; height: 14px; border: 1px solid #999; border-radius: 3px; flex-shrink: 0; }
-                .aub-item .cb.checked { background: #1a73e8; border-color: #1a73e8; }
+                :host {
+                    display: block;
+                    font-family: Faktum, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    font-size: 13px;
+                    color: #191530;
+                }
+                .aub-root {
+                    border: 1px solid #dfe7f5;
+                    border-radius: 4px;
+                    background: #f7faff;
+                    max-height: 480px;
+                    overflow-y: auto;
+                }
+                .aub-root::-webkit-scrollbar { width: 6px; }
+                .aub-root::-webkit-scrollbar-track { background: #f7faff; }
+                .aub-root::-webkit-scrollbar-thumb { background: #b3bfd1; border-radius: 3px; }
+                .aub-root::-webkit-scrollbar-thumb:hover { background: #7f8fa4; }
+                .aub-header {
+                    padding: 12px 16px;
+                    font-weight: 600;
+                    font-size: 14px;
+                    color: #191530;
+                    border-bottom: 1px solid #dfe7f5;
+                    background: #f7faff;
+                    border-radius: 4px 4px 0 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .aub-loading {
+                    padding: 24px;
+                    text-align: center;
+                    color: #7f8fa4;
+                    animation: aub-pulse 1.5s ease-in-out infinite;
+                }
+                @keyframes aub-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+                .aub-error {
+                    padding: 24px;
+                    text-align: center;
+                    color: #c0392b;
+                    font-size: 12px;
+                }
+                .aub-empty {
+                    padding: 24px;
+                    text-align: center;
+                    color: #7f8fa4;
+                    font-style: italic;
+                    font-size: 13px;
+                }
+                .aub-section {
+                    border-bottom: 1px solid #dfe7f5;
+                }
+                .aub-section-title {
+                    padding: 8px 16px;
+                    font-weight: 600;
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    color: #526482;
+                    background: #f7faff;
+                    letter-spacing: 0.8px;
+                }
+                .aub-item {
+                    padding: 12px 16px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    border-bottom: 1px solid #dfe7f5;
+                    color: #191530;
+                    transition: background-color 150ms ease-out;
+                }
+                .aub-item:hover { background: #ebf0fa; }
+                .aub-item .cb {
+                    width: 16px;
+                    height: 16px;
+                    border: 1.5px solid #191530;
+                    border-radius: 3px;
+                    flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 150ms ease-out;
+                    background: #fff;
+                }
+                .aub-item .cb.checked {
+                    background: #de1b76;
+                    border-color: #de1b76;
+                }
                 .aub-item-name { flex: 1; }
-                .aub-item-badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #e0e0e0; color: #555; }
-                .aub-item-badge.shared { background: #e3f2fd; color: #1565c0; }
-                .aub-btn { padding: 5px 12px; background: #1a73e8; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-                .aub-btn:hover { background: #1557b0; }
+                .aub-item-badge {
+                    font-size: 11px;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    background: #b9e1f9;
+                    color: #007cb6;
+                    font-weight: 500;
+                }
+                .aub-btn {
+                    padding: 6px 12px;
+                    background: #de1b76;
+                    color: #fff;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    font-family: inherit;
+                    transition: background-color 150ms ease-out;
+                }
+                .aub-btn:hover { background: #a40f58; }
             </style>
             <div class="aub-root">
                 <div class="aub-header">
                     <span>Audience Browser</span>
                     <button class="aub-btn" id="aub-create">+ Create</button>
                 </div>
-                <div class="aub-loading" id="aub-content">Loading audiences…</div>
+                <div class="aub-loading" id="aub-content">Loading audiences\u2026</div>
             </div>
         `;
         this.shadow.getElementById("aub-create")?.addEventListener("click", () => {
@@ -315,7 +515,10 @@ class MockAudienceBrowser extends HTMLElement {
             this.renderAudiences(audiences);
         } catch (e) {
             const el = this.shadow.getElementById("aub-content");
-            if (el) el.textContent = "Failed to load audiences.";
+            if (el) {
+                el.className = "aub-error";
+                el.textContent = "Failed to load audiences.";
+            }
         }
     }
 
@@ -326,7 +529,7 @@ class MockAudienceBrowser extends HTMLElement {
         container.innerHTML = "";
 
         if (audiences.length === 0) {
-            container.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-style: italic;">No saved audiences yet.</div>`;
+            container.innerHTML = `<div class="aub-empty">No saved audiences yet.</div>`;
             return;
         }
 
@@ -359,15 +562,16 @@ class MockAudienceBrowser extends HTMLElement {
         row.className = "aub-item";
 
         const isStaged = this.stagedIds.has(audience.id);
-        const badge = audience.shared
-            ? `<span class="aub-item-badge shared">shared</span>`
-            : "";
+        const badge = audience.shared ? `<span class="aub-item-badge">Shared</span>` : "";
 
-        row.innerHTML = `<span class="cb${isStaged ? " checked" : ""}"></span><span class="aub-item-name">${audience.name}</span>${badge}`;
+        row.innerHTML = `<span class="cb${isStaged ? " checked" : ""}">${isStaged ? MockAudienceBrowser.CHECK_SVG : ""}</span><span class="aub-item-name">${audience.name}</span>${badge}`;
 
         row.addEventListener("click", () => {
             const cb = row.querySelector(".cb");
-            cb?.classList.toggle("checked");
+            if (cb) {
+                const wasChecked = cb.classList.toggle("checked");
+                cb.innerHTML = wasChecked ? MockAudienceBrowser.CHECK_SVG : "";
+            }
             this.emit("audienceBrowserLeftToggledEvent", { payload: audience });
         });
 
@@ -387,8 +591,18 @@ class MockAudienceExpressionViewer extends HTMLElement {
         const shadow = this.attachShadow({ mode: "open" });
         shadow.innerHTML = `
             <style>
-                :host { display: block; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; color: #666; }
-                .expr { padding: 6px 10px; background: #f5f5f5; border-radius: 4px; border: 1px solid #e0e0e0; }
+                :host {
+                    display: block;
+                    font-family: Faktum, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    font-size: 12px;
+                    color: #526482;
+                }
+                .expr {
+                    padding: 8px 12px;
+                    background: #f7faff;
+                    border-radius: 4px;
+                    border: 1px solid #dfe7f5;
+                }
             </style>
             <div class="expr">Audience expression</div>
         `;
