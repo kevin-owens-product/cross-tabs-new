@@ -69,7 +69,7 @@ $row-label-width: 48px;
     &:focus-visible {
         outline: none;
         background-color: P2Colors.$pink-dark;
-        color: #ffffff;
+        color: P2Colors.$white;
     }
 
     &--icon {
@@ -88,7 +88,7 @@ $row-label-width: 48px;
         }
 
         &:hover:not(.open) {
-            color: #ffffff;
+            color: P2Colors.$white;
 
             &:before {
                 content: "";
@@ -110,7 +110,7 @@ $row-label-width: 48px;
         }
 
         &.sorted {
-            color: #a40f58;
+            color: P2Colors.$pink-dark;
         }
     }
 }
@@ -211,10 +211,10 @@ $row-label-width: 48px;
 
 @mixin xb2-drag-drop-mouseover($header) {
     @if $header == "row" {
-        box-shadow: inset 0 -2px 0 0 #de1b76;
+        box-shadow: inset 0 -2px 0 0 P2Colors.$pink-medium;
     } @else if $header == "col" {
-        box-shadow: inset -1px 0 0 0 #de1b76;
-        border-right-color: #de1b76;
+        box-shadow: inset -1px 0 0 0 P2Colors.$pink-medium;
+        border-right-color: P2Colors.$pink-medium;
     }
     @include xb2-drag-grabbing-cursor();
 }
@@ -275,7 +275,7 @@ $row-label-width: 48px;
     }
 
     &--input:checked ~ &--indicator {
-        color: #a40f58;
+        color: P2Colors.$pink-dark;
     }
 }
 
@@ -485,7 +485,7 @@ $row-label-width: 48px;
         }
 
         .simplebar-track {
-            background-color: #abb8cf;
+            background-color: P2Colors.$grey4;
             opacity: 1;
             border-radius: 6px;
             pointer-events: auto;
@@ -512,9 +512,9 @@ $row-label-width: 48px;
                 width: 8px;
                 border-top-left-radius: 6px;
                 border-bottom-left-radius: 6px;
-                background-color: #abb8cf;
+                background-color: P2Colors.$grey4;
             }
-            box-shadow: 3px 0px 0 0px #abb8cf;
+            box-shadow: 3px 0px 0 0px P2Colors.$grey4;
 
             .simplebar-scrollbar {
                 height: $scrollbar-width;
@@ -542,9 +542,9 @@ $row-label-width: 48px;
                 height: 8px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
-                background-color: #abb8cf;
+                background-color: P2Colors.$grey4;
             }
-            box-shadow: 0px 3px 0 0px #abb8cf;
+            box-shadow: 0px 3px 0 0px P2Colors.$grey4;
 
             .simplebar-scrollbar {
                 width: $scrollbar-width;
@@ -556,31 +556,31 @@ $row-label-width: 48px;
         .simplebar-scrollbar {
             opacity: 1;
             border-radius: 4px;
-            background-color: #526482;
+            background-color: P2Colors.$grey6;
             position: relative;
         }
 
         x-simplebar.simplebar-dragging .simplebar-hover .simplebar-scrollbar {
-            background-color: #de1b76;
+            background-color: P2Colors.$pink-medium;
 
             &:before {
-                background-color: #de1b76;
+                background-color: P2Colors.$pink-medium;
             }
         }
 
         &.is-scrolling-top .simplebar-track.simplebar-vertical .simplebar-scrollbar {
-            background-color: #de1b76;
+            background-color: P2Colors.$pink-medium;
 
             &:before {
-                background-color: #de1b76;
+                background-color: P2Colors.$pink-medium;
             }
         }
 
         &.is-scrolling-left .simplebar-track.simplebar-horizontal .simplebar-scrollbar {
-            background-color: #de1b76;
+            background-color: P2Colors.$pink-medium;
 
             &:before {
-                background-color: #de1b76;
+                background-color: P2Colors.$pink-medium;
             }
         }
 
@@ -603,7 +603,7 @@ $row-label-width: 48px;
             @include zindex.layer("XB2TableScrollTooltip");
             background-color: #19253b;
             padding: 8px 12px;
-            color: #ffffff;
+            color: P2Colors.$white;
             font-size: 14px;
             font-weight: 500;
             white-space: nowrap;
@@ -668,7 +668,7 @@ $row-label-width: 48px;
             }
 
             &:hover {
-                background-color: #de1b76;
+                background-color: P2Colors.$pink-medium;
 
                 &:before {
                     @include zindex.layer("XB2TableScrollTooltip");
@@ -676,7 +676,7 @@ $row-label-width: 48px;
                     position: absolute;
                     background-color: #19253b;
                     padding: 8px 12px;
-                    color: #ffffff;
+                    color: P2Colors.$white;
                     font-size: 14px;
                     font-weight: 500;
                     white-space: nowrap;
@@ -744,7 +744,7 @@ $row-label-width: 48px;
             }
 
             #{$root}__table-scroll-button {
-                background-color: #de1b76;
+                background-color: P2Colors.$pink-medium;
             }
         }
 
@@ -776,7 +776,7 @@ $row-label-width: 48px;
         &.inactive:not(.hovered) {
             .simplebar-track {
                 opacity: 0.2;
-                background-color: #abb8cf;
+                background-color: P2Colors.$grey4;
             }
 
             .simplebar-scrollbar {
@@ -795,7 +795,7 @@ $row-label-width: 48px;
 
         &--resize-handler {
             @include zindex.layer("XB2TableOverlay");
-            @include xb2-table-resizing-cursor-ew(#de1b76);
+            @include xb2-table-resizing-cursor-ew(P2Colors.$pink-medium);
 
             position: absolute;
             display: flex;
@@ -804,7 +804,7 @@ $row-label-width: 48px;
             left: calc(#{$column-width-first} - 1px - 8px);
             bottom: 0;
             width: 16px;
-            color: #de1b76;
+            color: P2Colors.$pink-medium;
             opacity: 0;
             height: calc(
                 #{$column-header-height} + (var(--total-row-height) * (var(--rows-count)))
@@ -817,12 +817,12 @@ $row-label-width: 48px;
             }
 
             &.is-resizing {
-                color: #a40f58;
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                color: P2Colors.$pink-dark;
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                 opacity: 1;
 
                 &.vertical {
-                    @include xb2-table-resizing-cursor-ns(#a40f58);
+                    @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                 }
             }
 
@@ -833,7 +833,7 @@ $row-label-width: 48px;
             }
 
             &.vertical {
-                @include xb2-table-resizing-cursor-ns(#de1b76);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-medium);
 
                 top: calc(#{$column-header-height} - 8px);
                 left: 0;
@@ -913,7 +913,7 @@ $row-label-width: 48px;
             top: var(--header-column-height);
             display: grid;
             grid-auto-rows: 1fr;
-            color: #191530;
+            color: P2Colors.$navy;
             font-size: 12px;
             border-bottom: 3px solid P2Colors.$grey5;
             overflow: hidden;
@@ -968,11 +968,11 @@ $row-label-width: 48px;
             cursor: default;
 
             .is-header-resizing-row & {
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
             }
 
             .is-header-resizing-column & {
-                @include xb2-table-resizing-cursor-ns(#a40f58);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
             }
 
             .drag-drop-occuring & {
@@ -987,12 +987,12 @@ $row-label-width: 48px;
 
                 &:first-child > &--item {
                     font-weight: 700;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     border-top: none;
                 }
 
                 &.even {
-                    background-color: #ffffff;
+                    background-color: P2Colors.$white;
                 }
 
                 &:not(.even) {
@@ -1004,7 +1004,7 @@ $row-label-width: 48px;
 
                     &:first-child {
                         font-weight: 700;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         border-left: none;
                         padding-right: 20px;
                     }
@@ -1313,7 +1313,7 @@ $row-label-width: 48px;
                             padding: 8px;
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -1456,7 +1456,7 @@ $row-label-width: 48px;
             background-size: calc(100% + 2px) calc(2 * var(--total-row-height, 112px));
             background-repeat: repeat-y;
             background-position-x: -1px;
-            border-right: 1px solid #abb8cf;
+            border-right: 1px solid P2Colors.$grey4;
             height: calc(var(--total-row-height, 112px) * (var(--frozen-rows)));
 
             @for $i from 1 through 5 {
@@ -1482,7 +1482,7 @@ $row-label-width: 48px;
             &--item {
                 position: relative;
 
-                color: #191530;
+                color: P2Colors.$navy;
 
                 cursor: default;
                 word-break: break-word;
@@ -1494,15 +1494,15 @@ $row-label-width: 48px;
                 background-color: var(--row-background-color);
 
                 .is-header-resizing-row & {
-                    @include xb2-table-resizing-cursor-ew(#a40f58);
+                    @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                 }
 
                 .is-header-resizing-column & {
-                    @include xb2-table-resizing-cursor-ns(#a40f58);
+                    @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                 }
 
                 &.even {
-                    --row-background-color: #ffffff;
+                    --row-background-color: #{P2Colors.$white};
                 }
 
                 &:not(.even) {
@@ -1616,11 +1616,11 @@ $row-label-width: 48px;
                         cursor: pointer;
 
                         .is-header-resizing-row & {
-                            @include xb2-table-resizing-cursor-ew(#a40f58);
+                            @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                         }
 
                         .is-header-resizing-column & {
-                            @include xb2-table-resizing-cursor-ns(#a40f58);
+                            @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                         }
                     }
                 }
@@ -1717,13 +1717,13 @@ $row-label-width: 48px;
 
                         text-align: right;
                         font-size: 12px;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         font-weight: 400;
                         display: flex;
                         flex-direction: column;
 
                         &--label.sorted-by {
-                            color: #de1b76;
+                            color: P2Colors.$pink-medium;
                             font-weight: 600;
                         }
                     }
@@ -1769,7 +1769,7 @@ $row-label-width: 48px;
                 }
 
                 &--sorted-by {
-                    color: #de1b76;
+                    color: P2Colors.$pink-medium;
                     font-weight: 600;
                 }
 
@@ -1821,7 +1821,7 @@ $row-label-width: 48px;
                 }
 
                 &.selected &--caption {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                 }
 
                 &.selected &--caption--subtitle {
@@ -1927,7 +1927,7 @@ $row-label-width: 48px;
             top: var(--header-column-height);
             display: grid;
             grid-auto-rows: 1fr;
-            color: #191530;
+            color: P2Colors.$navy;
             font-size: 12px;
             overflow: hidden;
 
@@ -1983,11 +1983,11 @@ $row-label-width: 48px;
             cursor: default;
 
             .is-header-resizing-row & {
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
             }
 
             .is-header-resizing-column & {
-                @include xb2-table-resizing-cursor-ns(#a40f58);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
             }
 
             .drag-drop-occuring & {
@@ -2002,12 +2002,12 @@ $row-label-width: 48px;
 
                 .table-hasnt-frozen-rows &:first-child > &--item {
                     font-weight: 700;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     border-top: none;
                 }
 
                 &.even {
-                    background-color: #ffffff;
+                    background-color: P2Colors.$white;
                 }
 
                 &:not(.even) {
@@ -2019,7 +2019,7 @@ $row-label-width: 48px;
 
                     &:first-child {
                         font-weight: 700;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         border-left: none;
                         padding-right: 20px;
                     }
@@ -2328,7 +2328,7 @@ $row-label-width: 48px;
                             padding: 8px;
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -2472,7 +2472,7 @@ $row-label-width: 48px;
             background: url("/assets/crosstab-builder/table-bg-2-bars.svg") repeat;
             background-size: $cell-width 200%;
             background-position: left 100%;
-            border-bottom: 1px solid #abb8cf;
+            border-bottom: 1px solid P2Colors.$grey4;
             overflow: hidden;
 
             width: calc(#{$cell-width} * (var(--frozen-cols)));
@@ -2495,7 +2495,7 @@ $row-label-width: 48px;
                 position: relative;
                 left: 0;
                 top: 0;
-                background: #ffffff;
+                background: P2Colors.$white;
 
                 .forced-loading-state & {
                     opacity: 0;
@@ -2516,11 +2516,11 @@ $row-label-width: 48px;
                 height: $column-header-height;
 
                 .is-header-resizing-row & {
-                    @include xb2-table-resizing-cursor-ew(#a40f58);
+                    @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                 }
 
                 .is-header-resizing-column & {
-                    @include xb2-table-resizing-cursor-ns(#a40f58);
+                    @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                 }
 
                 &--content {
@@ -2583,7 +2583,7 @@ $row-label-width: 48px;
                         cursor: pointer;
 
                         .is-header-resizing-column & {
-                            @include xb2-table-resizing-cursor-ns(#a40f58);
+                            @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                         }
                     }
 
@@ -2628,7 +2628,7 @@ $row-label-width: 48px;
                         @include mixins.lineClamp(calc(var(--title-lines, 1) + 3));
                     }
 
-                    color: #191530;
+                    color: P2Colors.$navy;
                     height: 100%;
                     width: 100%;
                 }
@@ -2708,7 +2708,7 @@ $row-label-width: 48px;
                     &--metrics {
                         text-align: left;
                         font-size: 12px;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         white-space: nowrap;
                         padding-top: 8px;
                         padding-bottom: 10px;
@@ -2724,7 +2724,7 @@ $row-label-width: 48px;
                             min-width: calc(100% / var(--metrics-count, 5));
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -2792,7 +2792,7 @@ $row-label-width: 48px;
                 }
 
                 &.selected &--caption {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                 }
 
                 &.selected &--caption--subtitle {
@@ -2886,7 +2886,7 @@ $row-label-width: 48px;
             border-right: 3px solid P2Colors.$grey5;
             display: grid;
             grid-auto-rows: 1fr;
-            color: #191530;
+            color: P2Colors.$navy;
             font-size: 12px;
             border-bottom: 3px solid P2Colors.$grey5;
             overflow: hidden;
@@ -2931,11 +2931,11 @@ $row-label-width: 48px;
             cursor: default;
 
             .is-header-resizing-row & {
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
             }
 
             .is-header-resizing-column & {
-                @include xb2-table-resizing-cursor-ns(#a40f58);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
             }
 
             .drag-drop-occuring & {
@@ -2950,13 +2950,13 @@ $row-label-width: 48px;
 
                 &:first-child > &--item {
                     font-weight: 700;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     border-top: none;
                     padding-right: 20px;
                 }
 
                 &.even {
-                    background-color: #ffffff;
+                    background-color: P2Colors.$white;
                 }
 
                 &:not(.even) {
@@ -2968,7 +2968,7 @@ $row-label-width: 48px;
 
                     &:first-child {
                         font-weight: 700;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         border-left: none;
                         padding-right: 20px;
                     }
@@ -3277,7 +3277,7 @@ $row-label-width: 48px;
                             padding: 8px;
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -3421,20 +3421,20 @@ $row-label-width: 48px;
             position: sticky;
             left: 0;
             top: 0;
-            background-color: #ffffff;
+            background-color: P2Colors.$white;
 
             .is-header-resizing-row & {
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
             }
 
             .is-header-resizing-column & {
-                @include xb2-table-resizing-cursor-ns(#a40f58);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
             }
 
             &--borderlines {
                 margin-left: 0;
-                border-right: 1px solid #abb8cf;
-                border-bottom: 1px solid #abb8cf;
+                border-right: 1px solid P2Colors.$grey4;
+                border-bottom: 1px solid P2Colors.$grey4;
                 width: 100%;
                 position: relative;
 
@@ -3494,8 +3494,8 @@ $row-label-width: 48px;
                     padding: 4px 8px 5px;
                     border-radius: 4px;
                     font-size: 12px;
-                    background-color: #191530;
-                    color: #ffffff;
+                    background-color: P2Colors.$navy;
+                    color: P2Colors.$white;
                     line-height: 2;
                 }
 
@@ -3515,13 +3515,13 @@ $row-label-width: 48px;
             position: sticky;
             overflow: hidden;
             left: 0;
-            background-color: #ffffff;
+            background-color: P2Colors.$white;
             background: url("/assets/crosstab-builder/table-bg-1-bars.svg") repeat;
             background-size: calc(100% + 2px) calc(2 * var(--total-row-height, 112px));
             background-repeat: repeat-y;
             background-position-x: -1px;
 
-            border-right: 1px solid #abb8cf;
+            border-right: 1px solid P2Colors.$grey4;
 
             height: calc(
                 var(--total-row-height, 112px) * (var(--rows-count) - var(--frozen-rows))
@@ -3553,7 +3553,7 @@ $row-label-width: 48px;
             &--item {
                 position: relative;
 
-                color: #191530;
+                color: P2Colors.$navy;
 
                 cursor: default;
                 word-break: break-word;
@@ -3565,15 +3565,15 @@ $row-label-width: 48px;
                 background-color: var(--row-background-color);
 
                 .is-header-resizing-row & {
-                    @include xb2-table-resizing-cursor-ew(#a40f58);
+                    @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                 }
 
                 .is-header-resizing-column & {
-                    @include xb2-table-resizing-cursor-ns(#a40f58);
+                    @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                 }
 
                 &.even {
-                    --row-background-color: #ffffff;
+                    --row-background-color: #{P2Colors.$white};
                 }
 
                 &:not(.even) {
@@ -3687,11 +3687,11 @@ $row-label-width: 48px;
                         cursor: pointer;
 
                         .is-header-resizing-row & {
-                            @include xb2-table-resizing-cursor-ew(#a40f58);
+                            @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                         }
 
                         .is-header-resizing-column & {
-                            @include xb2-table-resizing-cursor-ns(#a40f58);
+                            @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                         }
                     }
                 }
@@ -3788,13 +3788,13 @@ $row-label-width: 48px;
 
                         text-align: right;
                         font-size: 12px;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         font-weight: 400;
                         display: flex;
                         flex-direction: column;
 
                         &--label.sorted-by {
-                            color: #de1b76;
+                            color: P2Colors.$pink-medium;
                             font-weight: 600;
                         }
                     }
@@ -3839,7 +3839,7 @@ $row-label-width: 48px;
                 }
 
                 &--sorted-by {
-                    color: #de1b76;
+                    color: P2Colors.$pink-medium;
                     font-weight: 600;
                 }
 
@@ -3891,7 +3891,7 @@ $row-label-width: 48px;
                 }
 
                 &.selected &--caption {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                 }
 
                 &.selected &--caption--subtitle {
@@ -4000,7 +4000,7 @@ $row-label-width: 48px;
             background-size: $cell-width 200%;
             background-position: left 100%;
 
-            border-bottom: 1px solid #abb8cf;
+            border-bottom: 1px solid P2Colors.$grey4;
 
             width: calc(#{$cell-width} * (var(--columns-count) - var(--frozen-cols)));
 
@@ -4025,7 +4025,7 @@ $row-label-width: 48px;
                 left: 0;
                 top: 0;
                 transform: translateX(calc((var(--top-left-col)) * #{$cell-width}));
-                background: #ffffff;
+                background: P2Colors.$white;
 
                 .forced-loading-state & {
                     opacity: 0;
@@ -4056,11 +4056,11 @@ $row-label-width: 48px;
                 height: $column-header-height;
 
                 .is-header-resizing-row & {
-                    @include xb2-table-resizing-cursor-ew(#a40f58);
+                    @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
                 }
 
                 .is-header-resizing-column & {
-                    @include xb2-table-resizing-cursor-ns(#a40f58);
+                    @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                 }
 
                 &--content {
@@ -4123,7 +4123,7 @@ $row-label-width: 48px;
                         cursor: pointer;
 
                         .is-header-resizing-column & {
-                            @include xb2-table-resizing-cursor-ns(#a40f58);
+                            @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
                         }
                     }
 
@@ -4168,7 +4168,7 @@ $row-label-width: 48px;
                         @include mixins.lineClamp(calc(var(--title-lines, 1) + 3));
                     }
 
-                    color: #191530;
+                    color: P2Colors.$navy;
                     height: 100%;
                     width: 100%;
                 }
@@ -4248,7 +4248,7 @@ $row-label-width: 48px;
                     &--metrics {
                         text-align: left;
                         font-size: 12px;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         white-space: nowrap;
                         padding-top: 8px;
                         padding-bottom: 10px;
@@ -4264,7 +4264,7 @@ $row-label-width: 48px;
                             min-width: calc(100% / var(--metrics-count, 5));
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -4332,7 +4332,7 @@ $row-label-width: 48px;
                 }
 
                 &.selected &--caption {
-                    color: #a40f58;
+                    color: P2Colors.$pink-dark;
                 }
 
                 &.selected &--caption--subtitle {
@@ -4423,7 +4423,7 @@ $row-label-width: 48px;
             display: grid;
             grid-auto-rows: 1fr;
 
-            color: #191530;
+            color: P2Colors.$navy;
             font-size: 12px;
 
             background: url("/assets/crosstab-builder/table-bg.svg") repeat;
@@ -4483,11 +4483,11 @@ $row-label-width: 48px;
             cursor: default;
 
             .is-header-resizing-row & {
-                @include xb2-table-resizing-cursor-ew(#a40f58);
+                @include xb2-table-resizing-cursor-ew(P2Colors.$pink-dark);
             }
 
             .is-header-resizing-column & {
-                @include xb2-table-resizing-cursor-ns(#a40f58);
+                @include xb2-table-resizing-cursor-ns(P2Colors.$pink-dark);
             }
 
             .drag-drop-occuring & {
@@ -4502,13 +4502,13 @@ $row-label-width: 48px;
 
                 .table-hasnt-frozen-rows &:not(.scrolled-y):first-child > &--item {
                     font-weight: 700;
-                    color: #191530;
+                    color: P2Colors.$navy;
                     border-top: none;
                     padding-right: 20px;
                 }
 
                 &.even {
-                    background-color: #ffffff;
+                    background-color: P2Colors.$white;
                 }
 
                 &:not(.even) {
@@ -4520,7 +4520,7 @@ $row-label-width: 48px;
 
                     &:first-child {
                         font-weight: 700;
-                        color: #191530;
+                        color: P2Colors.$navy;
                         border-left: none;
                         padding-right: 20px;
                     }
@@ -4830,7 +4830,7 @@ $row-label-width: 48px;
                             padding: 8px;
 
                             &.sorted-by {
-                                color: #de1b76;
+                                color: P2Colors.$pink-medium;
                             }
                         }
 
@@ -4973,10 +4973,10 @@ $row-label-width: 48px;
 
     &__sorted-by {
         font-weight: 600;
-        color: #de1b76;
+        color: P2Colors.$pink-medium;
 
         .heatmap-active & {
-            color: #191530;
+            color: P2Colors.$navy;
         }
 
         &.total {
