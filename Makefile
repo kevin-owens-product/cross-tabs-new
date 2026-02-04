@@ -185,3 +185,13 @@ build_xb2:
 
 .PHONY: build_for_p20
 build_for_p20: build_xb2
+
+# Local development (standalone, no single-spa)
+
+.PHONY: seed
+seed: ## Seeds the local mock server with sample data.
+	cd server && node seed.js
+
+.PHONY: start-local
+start-local: ## Starts the full local dev environment (API server + webpack).
+	./bin/start-local.sh

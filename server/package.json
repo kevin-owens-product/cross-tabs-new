@@ -1,0 +1,16 @@
+{
+  "name": "crosstabs-local-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local mock API server for crosstab builder development",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  }
+}

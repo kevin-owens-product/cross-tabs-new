@@ -19,3 +19,4 @@ package-lock.json
 out.js
 .npmrc
 .coverage
+server/data.json

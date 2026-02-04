@@ -1,5 +1,5 @@
 import d3 from "d3";
-import d3scription, { Tip } from "d3scription-fork";
+import d3scription, { Tip } from "./d3scription";
 
 import * as Utils from "../../utils";
 

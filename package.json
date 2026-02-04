@@ -29,8 +29,6 @@
   "devDependencies": {
     "@babel/core": "^7.23.6",
     "@babel/preset-env": "^7.23.6",
-    "@globalwebindex/platform2-lib": "git+ssh://git@github.com/globalwebindex/platform2-lib#v9.0.0",
-    "@globalwebindex/platform2-web-components": "3.3.0",
     "@sentry/webpack-plugin": "3.5.0",
     "@types/d3": "7.4.3",
     "@types/webpack-dev-server": "4.7.2",
@@ -46,8 +44,6 @@
     "css-minimizer-webpack-plugin": "^5.0.1",
     "cssnano": "^5.0.15",
     "d3": "~3.5",
-    "d3-charts": "git+ssh://git@github.com/globalwebindex/d3-charts#4.3.9",
-    "d3-charts-2": "git+ssh://git@github.com/globalwebindex/d3-charts#d2-1.0.38",
     "debounce": "^1.2.0",
     "elm-debug-transformer": "1.2.1",
     "elm-hot-webpack-loader": "^1.1.8",
@@ -82,7 +78,8 @@
     "url-loader": "^4.1.1",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.0"
   },
   "dependencies": {
     "@emotion/react": "11.10.5",
@@ -90,8 +87,6 @@
     "@mui/material": "5.11.4",
     "@sentry/browser": "9.26.0",
     "bowser": "^2.11.0",
-    "d3scription": "^1.0.1",
-    "d3scription-fork": "git+ssh://git@github.com/globalwebindex/d3scription-fork#53c8bb798774a78c4a0d48490a233cdbe49806fe",
     "isomorphic-fetch": "^3.0.0",
     "js-cookie": "3.0.1",
     "react": "^18.2.0",

@@ -9,7 +9,7 @@
    * mount
    * unmount
 */
-import { ximport } from "@globalwebindex/platform2-lib";
+import { ximport } from "../../_stubs/platform2-lib/index";
 
 import keysInit from "../../_initializer/keys";
 import p2UrlInit from "../../_initializer/p2-url";

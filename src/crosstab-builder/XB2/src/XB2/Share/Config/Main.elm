@@ -180,9 +180,24 @@ alpha =
     }
 
 
+localDevUris : Uri
+localDevUris =
+    { api = "http://localhost:3005"
+    , signOut = always "http://localhost:3005/sign-out"
+    , app = "http://localhost:3005"
+    , attributes = "http://localhost:3005/v2/attributes"
+    , collections = "http://localhost:3005/v1/collections"
+    , audiences = "http://localhost:3005/v1/audience-builder"
+    , audiencesCore = "http://localhost:3005/v2/audiences"
+    , datasets = "http://localhost:3005/v1/datasets"
+    , analytics = "http://localhost:3005/v1/analytics"
+    , serviceLayer = "http://localhost:3005/platform"
+    }
+
+
 development : Config
 development =
-    { uri = testingUris
+    { uri = localDevUris
     , authCookieName = "auth_gwi_development"
     }
 

@@ -1,4 +1,4 @@
-import Intercom from "@globalwebindex/platform2-lib/dist/intercom";
+import Intercom from "../_stubs/platform2-lib/intercom";
 
 export default (app) => {
     if (Intercom) {

@@ -1,5 +1,5 @@
 import { handlers } from "./helpers";
-import Intercom from "@globalwebindex/platform2-lib/dist/intercom";
+import Intercom from "../_stubs/platform2-lib/intercom";
 
 const openChat = (app) => () => {
     Intercom.show();

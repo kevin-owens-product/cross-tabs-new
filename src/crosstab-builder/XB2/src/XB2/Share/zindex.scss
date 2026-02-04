@@ -56,7 +56,7 @@ $layers: (
     "TV2TableHeaderLeft",
     "Filters",
     /* dashboards header containts z-index because of some sort of IE11 issue (this is edge case when screen is super small below 820px) */
-        /* headers needs to be above header border*/ "DashboardWidgetHeader",
+    /* headers needs to be above header border*/ "DashboardWidgetHeader",
     "WidgetEditDimensionButtons",
     "DashboardWidgetHeaderBorder"
 );
@@ -64,7 +64,7 @@ $layers: (
 $fixedZindexLayers: (
     "MixinWrongUsageProtection": 1321,
     /* dialog popups are used also for errors which has to be always on top */
-        "DialogPopup": 1320,
+    "DialogPopup": 1320,
     "DialogPopupOverlay": 1319,
     "Dashboard2DraggedGhost": 1318,
     "P2AutocompleteInputSuggestions": 1317,
